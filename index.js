@@ -1,0 +1,18 @@
+const express = require('express');  
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const app = express();
+const port = process.env.PORT || 3002;
+
+const mofcom = require('./mofcom');
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+// app.use(myPassport.initialize());
+
+app.use('/mofcom', mofcom);
+
+app.listen(port, function() {  
+  console.log('listening on port', port);
+});

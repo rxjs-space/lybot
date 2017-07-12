@@ -1,0 +1,29 @@
+{
+  "name": "lybot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index-spec.js",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "cors": "^2.8.3",
+    "express": "^4.15.3",
+    "jimp": "^0.2.28",
+    "selenium-webdriver": "^3.4.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rxjs-space/lybot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rxjs-space/lybot/issues"
+  },
+  "homepage": "https://github.com/rxjs-space/lybot#readme"
+}
