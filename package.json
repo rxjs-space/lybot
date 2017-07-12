@@ -2,7 +2,7 @@
   "name": "lybot",
   "version": "1.0.0",
   "description": "",
-  "main": "index-spec.js",
+  "main": "index.js",
   "dependencies": {
     "body-parser": "^1.17.2",
     "cors": "^2.8.3",
