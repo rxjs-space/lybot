@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 // app.use(myPassport.initialize());
 
 app.get('/', (req, res) => {
-  res.send('welcome');
+  res.send('welcome!');
 })
 app.use('/mofcom', mofcom);
 
