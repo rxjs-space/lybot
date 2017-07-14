@@ -2,10 +2,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const app = express();
+const morgan = require('morgan')
 const port = process.env.PORT || 3002;
 
 const mofcom = require('./mofcom');
 
+app.use(morgan('combined'))
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
