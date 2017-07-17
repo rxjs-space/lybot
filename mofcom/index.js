@@ -8,6 +8,8 @@ const until = webdriver.until;
 const Jimp = require("jimp");
 const Rx = require('rxjs/Rx');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const drivers = {};
 const newActionRxxs = {};
 const url = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
@@ -125,6 +127,14 @@ const nonTextInputsHash = {
   '1': ['owner.isPerson']
 }
 
+const kodakPromise = (driver, fileName) => {
+  if (isProduction) {return Promise.resolve('anything'); }
+  return driver.takeScreenshot().then((s) => {
+    fs.writeFile(fileName, s, 'base64');
+  });
+}
+
+
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 router.post('/new-vehicle', (req, res) => {
@@ -172,9 +182,8 @@ router.post('/new-vehicle', (req, res) => {
     // yield driver.wait(
     //   until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
     // , 30 * 1000);
-    yield driver.takeScreenshot().then((s) => {
-      fs.writeFile('png/03-01-before-typing-in.png', s, 'base64');
-    });
+    yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
+
 
     // const isNewVehicleVisible = yield isElementVisible(driver, '//*[@id="1008"]/div[10]/div[1]/span');
     // if (!isNewVehicleVisible) {
@@ -231,10 +240,8 @@ router.post('/new-vehicle', (req, res) => {
 
 
 
+    yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
 
-    yield driver.takeScreenshot().then((s) => {
-      fs.writeFile('png/03-02-after-typing-in.png', s, 'base64');
-    });
     return res.json({
       ok: true, message: 'typing in data'
     })
@@ -281,9 +288,10 @@ router.post('/login', (req, res) => {
         yield driver.findElement(By.name('userName')).sendKeys(username);
         yield driver.findElement(By.name('id_password')).sendKeys(password);
         yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
-        yield driver.takeScreenshot().then((s) => {
-          fs.writeFile('png/02-01-before-click-submit.png', s, 'base64');
-        });
+        yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
+        // yield driver.takeScreenshot().then((s) => {
+        //   fs.writeFile('png/02-01-before-click-submit.png', s, 'base64');
+        // });
 
 
         yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
@@ -293,9 +301,8 @@ router.post('/login', (req, res) => {
         yield driver.wait(
           until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
         , 30 * 1000);
-        yield driver.takeScreenshot().then((s) => {
-          fs.writeFile('png/02-02-after-loggingin.png', s, 'base64');
-        });
+        yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
+
         urlAfterLogin = yield driver.getCurrentUrl();
         res.json({
           ok: true, message: 'loggedin', urlAfterLogin
