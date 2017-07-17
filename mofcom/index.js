@@ -6,11 +6,43 @@ const fs = require('fs');
 const By = webdriver.By;
 const until = webdriver.until;
 const Jimp = require("jimp");
+const Rx = require('rxjs/Rx');
 
-const driver = new webdriver.Builder()
-  .forBrowser('phantomjs')
-  .build();
+const drivers = {};
+const newActionRxxs = {};
 const url = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
+
+const driverClear = (authHeader) => {
+  if (drivers[authHeader]) {
+    drivers[authHeader].quit();
+    delete drivers[authHeader];
+    delete newActionRxxs[authHeader];
+  }
+}
+
+const driverInit = (authHeader) => {
+  driverClear(authHeader);
+  drivers[authHeader] = new webdriver.Builder()
+    .forBrowser('phantomjs')
+    .build();
+  newActionRxxs[authHeader] = new Rx.Subject();
+  const timerRx = Rx.Observable
+    .timer(5 * 60 * 1000)
+    .map(() => {
+      if (drivers[authHeader]) {
+        console.log(`quitting driver for ${authHeader}.`)
+        driverClear(authHeader);
+      }
+    });
+  newActionRxxs[authHeader]
+    .switchMap(() => timerRx)
+    .subscribe();
+
+  return drivers[authHeader];
+}
+
+
+
 let urlAfterLogin = '';
 
 const handleErrorFac = (res) => {
@@ -79,13 +111,13 @@ const lastInputElementXPathHash = {
 const vehicleDetailsXPathHash = {
   '1': {
     'owner.isPerson': '//*[@id="1047"]/input',
-    // 'owner.name': '//*[@id="1049"]/input',
-    // 'owner.idNo': '//*[@id="1050"]/input',
-    // 'owner.tel': '//*[@id="1051"]/input',
-    // 'owner.address': '//*[@id="1052"]/input',
-    // 'owner.zipCode': '//*[@id="1053"]/input',
-    // 'agent.name': '//*[@id="1054"]/input',
-    // 'agent.idNo': '//*[@id="1055"]/input'
+    'owner.name': '//*[@id="1049"]/input',
+    'owner.idNo': '//*[@id="1050"]/input',
+    'owner.tel': '//*[@id="1051"]/input',
+    'owner.address': '//*[@id="1052"]/input',
+    'owner.zipCode': '//*[@id="1053"]/input',
+    'agent.name': '//*[@id="1054"]/input',
+    'agent.idNo': '//*[@id="1055"]/input'
   }
 }
 
@@ -96,6 +128,25 @@ const nonTextInputsHash = {
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 router.post('/new-vehicle', (req, res) => {
+
+  const authHeader = req.headers ? req.headers['authorization'] : null;
+  if (!authHeader) {
+    // shall implement passport later
+    return res.status(400).json({
+      message: 'no authorization header provided'
+    })
+  }
+
+  const driver = drivers[authHeader];
+
+  if (!driver) {
+    return res.status(400).json({
+      message: 'login expired'
+    });
+  }
+
+  newActionRxxs[authHeader].next('anything');
+
   const vehicle = req.body.vehicle;
   if (!vehicle) {
     return res.status(400).json({
@@ -122,7 +173,7 @@ router.post('/new-vehicle', (req, res) => {
     //   until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
     // , 30 * 1000);
     yield driver.takeScreenshot().then((s) => {
-      fs.writeFile('typing-in-before-start.png', s, 'base64');
+      fs.writeFile('png/03-01-before-typing-in.png', s, 'base64');
     });
 
     // const isNewVehicleVisible = yield isElementVisible(driver, '//*[@id="1008"]/div[10]/div[1]/span');
@@ -168,7 +219,7 @@ router.post('/new-vehicle', (req, res) => {
           yield driver.findElement(By.xpath('//*[@id="1048"]/div[2]')).click(); // click on '否'
           // yield driver.wait(until.elementLocated(By.xpath(xpathHash['agent.name'])));
           break;
-        case nonTextInputs.indexOf(item) === -1 && value.length:
+        case nonTextInputs.indexOf(item) === -1 && !!value.length:
           yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
           break;
         // default:
@@ -182,7 +233,7 @@ router.post('/new-vehicle', (req, res) => {
 
 
     yield driver.takeScreenshot().then((s) => {
-      fs.writeFile('typing-in.png', s, 'base64');
+      fs.writeFile('png/03-02-after-typing-in.png', s, 'base64');
     });
     return res.json({
       ok: true, message: 'typing in data'
@@ -192,6 +243,24 @@ router.post('/new-vehicle', (req, res) => {
 })
 
 router.post('/login', (req, res) => {
+  const authHeader = req.headers ? req.headers['authorization'] : null;
+  if (!authHeader) {
+    // shall implement passport later
+    return res.status(400).json({
+      message: 'no authorization header provided'
+    })
+  }
+
+  const driver = drivers[authHeader];
+
+  if (!driver) {
+    return res.status(400).json({
+      message: 'login expired'
+    });
+  }
+
+  newActionRxxs[authHeader].next('anything');
+
   co(function*() {
     const currentUrl = yield driver.getCurrentUrl();
     if (currentUrl !== url) {
@@ -212,6 +281,10 @@ router.post('/login', (req, res) => {
         yield driver.findElement(By.name('userName')).sendKeys(username);
         yield driver.findElement(By.name('id_password')).sendKeys(password);
         yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
+        yield driver.takeScreenshot().then((s) => {
+          fs.writeFile('png/02-01-before-click-submit.png', s, 'base64');
+        });
+
 
         yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
         console.log('submitted');
@@ -220,9 +293,9 @@ router.post('/login', (req, res) => {
         yield driver.wait(
           until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
         , 30 * 1000);
-        // yield driver.takeScreenshot().then((s) => {
-        //   fs.writeFile('loggingin.png', s, 'base64');
-        // });
+        yield driver.takeScreenshot().then((s) => {
+          fs.writeFile('png/02-02-after-loggingin.png', s, 'base64');
+        });
         urlAfterLogin = yield driver.getCurrentUrl();
         res.json({
           ok: true, message: 'loggedin', urlAfterLogin
@@ -234,12 +307,21 @@ router.post('/login', (req, res) => {
 })
 
 router.post('/init', (req, res) => {
-
+  const authHeader = req.headers ? req.headers['authorization'] : null;
+  // console.log(req.headers['authorization']);
+  if (!authHeader) {
+    // shall implement passport later
+    return res.status(400).json({
+      message: 'no authorization header provided'
+    })
+  }
+  const driver = driverInit(req.headers['authorization']);
+  // driverInit();
   co(function*() {
     yield driver.get(url);
-      yield driver.takeScreenshot().then((s) => {
-        fs.writeFile('after-get-init-url.png', s, 'base64');
-      });
+    // yield driver.takeScreenshot().then((s) => {
+    //   fs.writeFile('png/01-01-after-get-init-url.png', s, 'base64');
+    // });
 
     yield driver.wait(
       until.titleContains('商务部业务系统统一平台')
@@ -252,7 +334,7 @@ router.post('/init', (req, res) => {
         until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
       , 30 * 1000);
       // yield driver.takeScreenshot().then((s) => {
-      //   fs.writeFile('back-to-operation-page.png', s, 'base64');
+      //   fs.writeFile('png/back-to-operation-page.png', s, 'base64');
       // });
 
       return res.status(400).json({
@@ -273,7 +355,7 @@ router.post('/init', (req, res) => {
     }
 
     // yield driver.takeScreenshot().then((s) => {
-    //   fs.writeFile('fetching-captcha.png', s, 'base64');
+    //   fs.writeFile('png/fetching-captcha.png', s, 'base64');
     // });
 
     // const captchaElem = driver.findElement(By.id('identifyCode'));
