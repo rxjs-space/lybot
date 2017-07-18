@@ -14,33 +14,33 @@ const drivers = {};
 const newActionRxxs = {};
 const url = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
 
-const driverClear = (authHeader) => {
-  if (drivers[authHeader]) {
-    drivers[authHeader].quit();
-    delete drivers[authHeader];
-    delete newActionRxxs[authHeader];
+const driverClear = (jwt) => {
+  if (drivers[jwt]) {
+    drivers[jwt].quit();
+    delete drivers[jwt];
+    delete newActionRxxs[jwt];
   }
 }
 
-const driverInit = (authHeader) => {
-  driverClear(authHeader);
-  drivers[authHeader] = new webdriver.Builder()
+const driverInit = (jwt) => {
+  driverClear(jwt);
+  drivers[jwt] = new webdriver.Builder()
     .forBrowser('phantomjs')
     .build();
-  newActionRxxs[authHeader] = new Rx.Subject();
+  newActionRxxs[jwt] = new Rx.Subject();
   const timerRx = Rx.Observable
     .timer(5 * 60 * 1000)
     .map(() => {
-      if (drivers[authHeader]) {
-        console.log(`quitting driver for ${authHeader}.`)
-        driverClear(authHeader);
+      if (drivers[jwt]) {
+        console.log(`quitting driver for ${jwt}.`)
+        driverClear(jwt);
       }
     });
-  newActionRxxs[authHeader]
+  newActionRxxs[jwt]
     .switchMap(() => timerRx)
     .subscribe();
 
-  return drivers[authHeader];
+  return drivers[jwt];
 }
 
 
@@ -139,15 +139,15 @@ const kodakPromise = (driver, fileName) => {
 
 router.post('/new-vehicle', (req, res) => {
 
-  const authHeader = req.headers ? req.headers['authorization'] : null;
-  if (!authHeader) {
+  const jwt = req.headers ? req.headers['authorization'] : null;
+  if (!jwt) {
     // shall implement passport later
     return res.status(400).json({
       message: 'no authorization header provided'
     })
   }
 
-  const driver = drivers[authHeader];
+  const driver = drivers[jwt];
 
   if (!driver) {
     return res.status(400).json({
@@ -155,7 +155,7 @@ router.post('/new-vehicle', (req, res) => {
     });
   }
 
-  newActionRxxs[authHeader].next('anything');
+  newActionRxxs[jwt].next('anything');
 
   const vehicle = req.body.vehicle;
   if (!vehicle) {
@@ -172,7 +172,10 @@ router.post('/new-vehicle', (req, res) => {
 
 
   co(function*() {
-    yield driver.get(urlAfterLogin);
+    const currentUrl = yield driver.getCurrentUrl();
+    if (currentUrl !== urlAfterLogin) {
+      yield driver.get(urlAfterLogin);
+    }
     const waitResult = yield waitResultPromise(driver, until.titleContains('商务部业务系统统一平台--汽车流通信息管理'), 20 * 1000);
     if (!waitResult.ok) {
       return res.status(400).json({
@@ -249,16 +252,110 @@ router.post('/new-vehicle', (req, res) => {
   }).catch(handleErrorFac(res));
 })
 
+const loginRxx = new Rx.Subject();
+exports.loginRxx = loginRxx;
+exports.loginRx = (captcha, jwt) => {
+  return new Rx.Observable(observer => {
+    const driver = drivers[jwt];
+    if (!driver) {
+      observer.error('login expired');
+      loginRxx.next('error');
+    } else {
+      newActionRxxs[jwt].next('anything');
+      co(function*() {
+        const currentUrl = yield driver.getCurrentUrl();
+        if (currentUrl !== url) {
+          observer.error('driver is not at init url');
+          loginRxx.next('error');
+        } else {
+          if (!captcha) {
+            observer.error('no captcha provided');
+            loginRxx.next('error');
+          } else {
+            const username = process.env.MOFCOM_USERNAME;
+            const password = process.env.MOFCOM_PASSWORD;
+            yield driver.findElement(By.name('userName')).sendKeys(username);
+            yield driver.findElement(By.name('id_password')).sendKeys(password);
+            yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
+            yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
+
+            yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
+            console.log('submitted');
+
+            yield driver.wait(
+              until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
+            , 30 * 1000);
+            yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
+
+            urlAfterLogin = yield driver.getCurrentUrl();
+            loginRxx.next('ok');
+            observer.next({
+              ok: true, message: 'logged in', urlAfterLogin
+            });
+          }
+        }
+      })
+    }
+  })
+}
+
+
+exports.loginPromise = (captcha, jwt) => {
+  return new Promise((resolve, reject) => {
+    const driver = drivers[jwt];
+    if (!driver) {
+      reject('login expired');
+    } else {
+      newActionRxxs[jwt].next('anything');
+      co(function*() {
+        const currentUrl = yield driver.getCurrentUrl();
+        if (currentUrl !== url) {
+          reject('driver is not at init url');
+        } else {
+          if (!captcha) {
+            reject('no captcha provided');
+          } else {
+            const username = process.env.MOFCOM_USERNAME;
+            const password = process.env.MOFCOM_PASSWORD;
+            yield driver.findElement(By.name('userName')).sendKeys(username);
+            yield driver.findElement(By.name('id_password')).sendKeys(password);
+            yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
+            yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
+
+            yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
+            console.log('submitted');
+
+            yield driver.wait(
+              until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
+            , 30 * 1000);
+            yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
+
+            urlAfterLogin = yield driver.getCurrentUrl();
+            resolve({
+              ok: true, message: 'logged in', urlAfterLogin
+            });
+            // res.json({
+            //   ok: true, message: 'logged in', urlAfterLogin
+            // });
+          }
+        }
+      })
+
+
+    }
+  })
+}
+
 router.post('/login', (req, res) => {
-  const authHeader = req.headers ? req.headers['authorization'] : null;
-  if (!authHeader) {
+  const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
+  if (!jwt) {
     // shall implement passport later
     return res.status(400).json({
       message: 'no authorization header provided'
     })
   }
 
-  const driver = drivers[authHeader];
+  const driver = drivers[jwt];
 
   if (!driver) {
     return res.status(400).json({
@@ -266,7 +363,7 @@ router.post('/login', (req, res) => {
     });
   }
 
-  newActionRxxs[authHeader].next('anything');
+  newActionRxxs[jwt].next('anything');
 
   co(function*() {
     const currentUrl = yield driver.getCurrentUrl();
@@ -279,7 +376,7 @@ router.post('/login', (req, res) => {
 
       const captcha = req.body.captcha;
       if (!captcha) {
-        res.status(400).json({
+        return res.status(400).json({
           message: 'no captcha provided.'
         });
       } else {
@@ -296,6 +393,7 @@ router.post('/login', (req, res) => {
 
         yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
         console.log('submitted');
+        res.write('submitted');
         // yield driver.wait(timeOutPromise(0.2 * 1000), 0.3 * 1000, 'holding ops after clicked on login button');
 
         yield driver.wait(
@@ -304,9 +402,11 @@ router.post('/login', (req, res) => {
         yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
 
         urlAfterLogin = yield driver.getCurrentUrl();
-        res.json({
-          ok: true, message: 'loggedin', urlAfterLogin
-        });
+        res.write('logged in');
+        res.end();
+        // res.json({
+        //   ok: true, message: 'logged in', urlAfterLogin
+        // });
       }
     }
   }).catch(handleErrorFac(res));
@@ -314,15 +414,14 @@ router.post('/login', (req, res) => {
 })
 
 router.post('/init', (req, res) => {
-  const authHeader = req.headers ? req.headers['authorization'] : null;
-  // console.log(req.headers['authorization']);
-  if (!authHeader) {
+  const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
+  if (!jwt) {
     // shall implement passport later
     return res.status(400).json({
       message: 'no authorization header provided'
     })
   }
-  const driver = driverInit(req.headers['authorization']);
+  const driver = driverInit(jwt);
   // driverInit();
   co(function*() {
     yield driver.get(url);
@@ -406,4 +505,4 @@ router.post('/init', (req, res) => {
 
 });
 
-module.exports = router;
+exports.router = router;
