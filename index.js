@@ -1,5 +1,5 @@
 const app = require('express')();
-const server = require('http').createServer(app);
+const server = require('http').Server(app);
 const io = require('socket.io')(server);
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -28,21 +28,21 @@ app.use('/mofcom', mofcom.router);
 
 
 io.on('connection', function(socket){
-  // console.log(socket);
   socket.on('captcha', (data) => {
     console.log(data);
     const jwt = data.jwt;
+    const roomId = socket.client.id;
     const captcha = data.captcha;
-    socket.join(jwt); // join a room named after the jwt
+    // socket.join(jwt); // join a room named after the jwt
     // user Observable.interval to keep avoid the socket being killed by heroku
     Rx.Observable.interval(20 * 1000)
       .takeUntil(mofcom.loginRxx)
-      .subscribe(x => io.to(jwt).emit('progressing', x));
+      .subscribe(x => io.to(roomId).emit('progressing', x));
     mofcom.loginRx(captcha, jwt)
       .take(1)
       .subscribe(
-        result => io.to(jwt).emit('message', result),
-        error => io.to(jwt).emit('lyError', error)
+        result => io.to(roomId).emit('message', result), // emit to room(jwt) only
+        error => io.to(roomId).emit('lyError', error)
       );
   })
 });
