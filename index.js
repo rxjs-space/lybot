@@ -31,9 +31,8 @@ io.on('connection', function(socket){
   socket.on('captcha', (data) => {
     console.log(data);
     const jwt = data.jwt;
-    const roomId = socket.client.id;
+    const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
     const captcha = data.captcha;
-    // socket.join(jwt); // join a room named after the jwt
     // user Observable.interval to keep avoid the socket being killed by heroku
     Rx.Observable.interval(20 * 1000)
       .takeUntil(mofcom.loginRxx)
@@ -41,7 +40,7 @@ io.on('connection', function(socket){
     mofcom.loginRx(captcha, jwt)
       .take(1)
       .subscribe(
-        result => io.to(roomId).emit('message', result), // emit to room(jwt) only
+        result => io.to(roomId).send(result), // .send method will emit 'message' event
         error => io.to(roomId).emit('lyError', error)
       );
   })

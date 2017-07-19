@@ -119,12 +119,55 @@ const vehicleDetailsXPathHash = {
     'owner.address': '//*[@id="1052"]/input',
     'owner.zipCode': '//*[@id="1053"]/input',
     'agent.name': '//*[@id="1054"]/input',
-    'agent.idNo': '//*[@id="1055"]/input'
+    'agent.idNo': '//*[@id="1055"]/input',
+    'vehicle.vehicleType': '//*[@id="1021"]/input',
+    'vehicle.useCharacter': '//*[@id="1023"]/input',
   }
 }
 
 const nonTextInputsHash = {
-  '1': ['owner.isPerson']
+  '1': ['owner.isPerson', 'vehicle.vehicleType', 'vehicle.useCharacter']
+}
+
+const nonTextInputOptionXPathHashes = {
+  '1': {
+    'owner.isPerson': {
+      false: '//*[@id="1048"]/div[2]'
+    },
+    'vehicle.vehicleType': {
+      大型载客车: '//*[@id="1022"]/div[1]',
+      中型载客车: '//*[@id="1022"]/div[2]',
+      小型载客车: '//*[@id="1022"]/div[3]',
+      微型载客车: '//*[@id="1022"]/div[4]',
+      轿车: '//*[@id="1022"]/div[5]',
+      '轿车(小型载客车)': '//*[@id="1022"]/div[6]',
+      '轿车(微型载客车)': '//*[@id="1022"]/div[7]',
+      重型载货车: '//*[@id="1022"]/div[8]',
+      中型载货车: '//*[@id="1022"]/div[9]',
+      轻型载货车: '//*[@id="1022"]/div[10]',
+      微型载货车: '//*[@id="1022"]/div[11]',
+      '三轮汽车（原三轮农用运输车）': '//*[@id="1022"]/div[12]',
+      '低速货车（原四轮农用运输车）': '//*[@id="1022"]/div[13]',
+      专项作业车: '//*[@id="1022"]/div[14]',
+      轮式专用机械车: '//*[@id="1022"]/div[15]',
+      普通摩托车: '//*[@id="1022"]/div[16]',
+      轻便摩托车: '//*[@id="1022"]/div[17]',
+      重型挂车: '//*[@id="1022"]/div[18]',
+      中型挂车: '//*[@id="1022"]/div[19]',
+      轻型挂车: '//*[@id="1022"]/div[20]',
+      半挂牵引车: '//*[@id="1022"]/div[21]',
+      全挂车: '//*[@id="1022"]/div[22]',
+    },
+    'vehicle.useCharacter': {
+      '农村客运(营运)': '//*[@id="1024"]/div[1]',
+      '城市公交(营运)': '//*[@id="1024"]/div[2]',
+      '出租客运(营运)': '//*[@id="1024"]/div[3]',
+      '旅游客运(营运)': '//*[@id="1024"]/div[4]',
+      '营运其他(营运)': '//*[@id="1024"]/div[5]',
+      '非营运': '//*[@id="1024"]/div[6]',
+      '危化品运输': '//*[@id="1024"]/div[7]',
+    }
+  }
 }
 
 const kodakPromise = (driver, fileName) => {
@@ -139,7 +182,16 @@ const kodakPromise = (driver, fileName) => {
 
 router.post('/new-vehicle', (req, res) => {
 
-  const jwt = req.headers ? req.headers['authorization'] : null;
+  const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
+  const jwtLast4 = jwt.substr(-4);
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
+
   if (!jwt) {
     // shall implement passport later
     return res.status(400).json({
@@ -170,33 +222,39 @@ router.post('/new-vehicle', (req, res) => {
     })
   }
 
+  const getUrlAfterLoginPromise = (currentUrl) => {
+    return new Promise((resolve, reject) => {
+      if (currentUrl !== urlAfterLogin) {
+        driver.get(urlAfterLogin).then(resolve).catch(reject)
+      } else {
+        resolve('anything');
+      }
+    })
+  }
 
   co(function*() {
     const currentUrl = yield driver.getCurrentUrl();
-    if (currentUrl !== urlAfterLogin) {
-      yield driver.get(urlAfterLogin);
-    }
-    const waitResult = yield waitResultPromise(driver, until.titleContains('商务部业务系统统一平台--汽车流通信息管理'), 20 * 1000);
-    if (!waitResult.ok) {
-      return res.status(400).json({
-        message: 'loggin expired.'
-      })
-    }
-    // yield driver.wait(
-    //   until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
-    // , 30 * 1000);
-    yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
-
-
-    // const isNewVehicleVisible = yield isElementVisible(driver, '//*[@id="1008"]/div[10]/div[1]/span');
-    // if (!isNewVehicleVisible) {
-      yield driver.findElement(By.xpath('//*[@id="1008"]/div[9]/span')).click(); // 车辆信息检索
-      yield driver.wait(until.elementLocated(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])));
-      yield driver.findElement(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])).click(); // 新建车辆 by mofcomRegisterType
+    console.log(jwtLast4, '[nv]', 'after getting currentUrl:', calculateTimeElapsed());
+    yield getUrlAfterLoginPromise(currentUrl);
+    // const waitResult = yield waitResultPromise(driver, until.titleContains('商务部业务系统统一平台--汽车流通信息管理'), 20 * 1000);
+    // console.log(jwtLast4, '[nv] after seeing the right title:', calculateTimeElapsed());
+    // if (!waitResult.ok) {
+    //   return res.status(400).json({
+    //     message: 'loggin expired.'
+    //   })
     // }
+    // // yield driver.wait(
+    // //   until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
+    // // , 30 * 1000);
+    yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
+    console.log(jwtLast4, '[nv] after taking 03-01:', calculateTimeElapsed());
 
+    yield driver.findElement(By.xpath('//*[@id="1008"]/div[9]/span')).click(); // 车辆信息检索
+    yield driver.wait(until.elementLocated(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])));
+    yield driver.findElement(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])).click(); // 新建车辆 by mofcomRegisterType
     yield driver.wait(until.elementLocated(By.xpath(lastInputElementXPathHash[vehicle.mofcomRegisterType]))); // until last input element is located
-    
+    console.log(jwtLast4, '[nv] after locating the last input element:', calculateTimeElapsed());
+
     const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
     if (vehicle.owner.isPerson) {
       delete xpathHash['agent.name'];
@@ -231,6 +289,8 @@ router.post('/new-vehicle', (req, res) => {
           yield driver.findElement(By.xpath('//*[@id="1048"]/div[2]')).click(); // click on '否'
           // yield driver.wait(until.elementLocated(By.xpath(xpathHash['agent.name'])));
           break;
+        case item === 'vehicle.useCharacter':
+          break;
         case nonTextInputs.indexOf(item) === -1 && !!value.length:
           yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
           break;
@@ -239,12 +299,12 @@ router.post('/new-vehicle', (req, res) => {
         //   yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
       }
     });
-
+    console.log(jwtLast4, '[nv] after filling in:', calculateTimeElapsed());
 
 
 
     yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
-
+    console.log(jwtLast4, '[nv] after taking 03-02:', calculateTimeElapsed());
     return res.json({
       ok: true, message: 'typing in data'
     })
