@@ -255,6 +255,15 @@ router.post('/new-vehicle', (req, res) => {
 const loginRxx = new Rx.Subject();
 exports.loginRxx = loginRxx;
 exports.loginRx = (captcha, jwt) => {
+  const jwtLast4 = jwt.substr(-4);
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
+
   return new Rx.Observable(observer => {
     const driver = drivers[jwt];
     if (!driver) {
@@ -264,6 +273,7 @@ exports.loginRx = (captcha, jwt) => {
       newActionRxxs[jwt].next('anything');
       co(function*() {
         const currentUrl = yield driver.getCurrentUrl();
+        console.log(jwtLast4, 'after getting current url:', calculateTimeElapsed());
         if (currentUrl !== url) {
           observer.error('driver is not at init url');
           loginRxx.next('error');
@@ -277,74 +287,43 @@ exports.loginRx = (captcha, jwt) => {
             yield driver.findElement(By.name('userName')).sendKeys(username);
             yield driver.findElement(By.name('id_password')).sendKeys(password);
             yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
+            console.log(jwtLast4, 'after inputing upc:', calculateTimeElapsed());
+
             yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
+            console.log(jwtLast4, 'after 02-01 png:', calculateTimeElapsed());
+
 
             yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
+            console.log(jwtLast4, 'after click submit:', calculateTimeElapsed());
+
             console.log('submitted');
 
             yield driver.wait(
               until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
             , 30 * 1000);
+            console.log(jwtLast4, 'after title updates:', calculateTimeElapsed());
+
             yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
+            console.log(jwtLast4, 'after taking 02-02.png:', calculateTimeElapsed());
+
 
             urlAfterLogin = yield driver.getCurrentUrl();
+            console.log(jwtLast4, 'after another round getting current url:', calculateTimeElapsed());
+
             loginRxx.next('ok');
             observer.next({
               ok: true, message: 'logged in', urlAfterLogin
             });
           }
         }
-      })
+      }).catch(error => {
+        observer.error(error);
+      });
     }
   })
 }
 
 
-exports.loginPromise = (captcha, jwt) => {
-  return new Promise((resolve, reject) => {
-    const driver = drivers[jwt];
-    if (!driver) {
-      reject('login expired');
-    } else {
-      newActionRxxs[jwt].next('anything');
-      co(function*() {
-        const currentUrl = yield driver.getCurrentUrl();
-        if (currentUrl !== url) {
-          reject('driver is not at init url');
-        } else {
-          if (!captcha) {
-            reject('no captcha provided');
-          } else {
-            const username = process.env.MOFCOM_USERNAME;
-            const password = process.env.MOFCOM_PASSWORD;
-            yield driver.findElement(By.name('userName')).sendKeys(username);
-            yield driver.findElement(By.name('id_password')).sendKeys(password);
-            yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
-            yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
-
-            yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
-            console.log('submitted');
-
-            yield driver.wait(
-              until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
-            , 30 * 1000);
-            yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
-
-            urlAfterLogin = yield driver.getCurrentUrl();
-            resolve({
-              ok: true, message: 'logged in', urlAfterLogin
-            });
-            // res.json({
-            //   ok: true, message: 'logged in', urlAfterLogin
-            // });
-          }
-        }
-      })
-
-
-    }
-  })
-}
 
 router.post('/login', (req, res) => {
   const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
@@ -415,6 +394,14 @@ router.post('/login', (req, res) => {
 
 router.post('/init', (req, res) => {
   const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
+  const jwtLast4 = jwt.substr(-4);
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
   if (!jwt) {
     // shall implement passport later
     return res.status(400).json({
@@ -422,86 +409,33 @@ router.post('/init', (req, res) => {
     })
   }
   const driver = driverInit(jwt);
+  console.log(jwtLast4, 'after driver init:', calculateTimeElapsed());
   // driverInit();
   co(function*() {
     yield driver.get(url);
-    // yield driver.takeScreenshot().then((s) => {
-    //   fs.writeFile('png/01-01-after-get-init-url.png', s, 'base64');
-    // });
-
+    console.log(jwtLast4, 'after opeing login url:', calculateTimeElapsed());
     yield driver.wait(
       until.titleContains('商务部业务系统统一平台')
     , 30 * 1000);
-    const isLoggedIn = yield hasElementPromise(driver, '//*[@id="out"]'); // this xpath pointing to the logout button
-    console.log('isLoggedIn:', isLoggedIn)
-    if (isLoggedIn) {
-      yield driver.get(urlAfterLogin);
-      yield driver.wait(
-        until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
-      , 30 * 1000);
-      // yield driver.takeScreenshot().then((s) => {
-      //   fs.writeFile('png/back-to-operation-page.png', s, 'base64');
-      // });
+    console.log(jwtLast4, 'after seeing the title:', calculateTimeElapsed());
+    const captchaElem = driver.findElement(By.id('identifyCode'));
+    const size = yield captchaElem.getSize();
+    const location = yield captchaElem.getLocation();
+    console.log(jwtLast4, 'after getting size and localtion of captcha:', calculateTimeElapsed());
+    const screenshotBase64 = yield driver.takeScreenshot();
+    console.log(jwtLast4, 'after taking screenshot:', calculateTimeElapsed());
+    const buf = Buffer.from(screenshotBase64, 'base64');
+    const screenshotJimp = yield Jimp.read(buf);
+    const captchaBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
+    console.log(jwtLast4, 'after cropping the screenshot:', calculateTimeElapsed());
+    return res.json({
+      captchaBase64
+    });
+    
 
-      return res.status(400).json({
-        message: 'already logged in'
-      })
-    } else {
-      const captchaElem = driver.findElement(By.id('identifyCode'));
-      const size = yield captchaElem.getSize();
-      const location = yield captchaElem.getLocation();
-
-      const screenshotBase64 = yield driver.takeScreenshot();
-      const buf = Buffer.from(screenshotBase64, 'base64');
-      const screenshotJimp = yield Jimp.read(buf);
-      const captchaBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
-      return res.json({
-        captchaBase64
-      });
-    }
-
-    // yield driver.takeScreenshot().then((s) => {
-    //   fs.writeFile('png/fetching-captcha.png', s, 'base64');
-    // });
-
-    // const captchaElem = driver.findElement(By.id('identifyCode'));
-    // let size, location;
-    // captchaElem.getSize().then(s => size = s);
-    // captchaElem.getLocation().then(l => location = l);
-    // ========
-    // const captchaElem = driver.findElement(By.id('identifyCode'));
-    // const size = yield captchaElem.getSize();
-    // const location = yield captchaElem.getLocation();
-
-    // const screenshotBase64 = yield driver.takeScreenshot();
-    // const buf = Buffer.from(screenshotBase64, 'base64');
-    // const screenshotJimp = yield Jimp.read(buf);
-    // const captchaImgBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
-    // res.send(captchaImgBase64);
-    // ========
-    // screenshotJimp.crop(location.x, location.y, size.width, size.height)
-    //   .getBuffer(Jimp.MIME_PNG, (error, buffer) => {
-    //     if (error) console.log(error);
-    //     const captchaImgBase64 = buffer.toString('base64');
-    //     // console.log(buffer.toString('base64'));
-    //     res.send(captchaImgBase64);
-    //   });
 
   }).catch(handleErrorFac(res));
-  // driver.takeScreenshot().then((s) => {
-  //   const buf = Buffer.from(s, 'base64');
-  //   Jimp.read(buf, function (err, screenshot) {
-  //       if (err) throw err;
-  //       screenshot.crop(location.x, location.y, size.width, size.height)
-  //         .getBuffer(Jimp.MIME_PNG, (error, buffer) => {
-  //           if (error) console.log(error);
-  //           const captchaImgBase64 = buffer.toString('base64');
-  //           // console.log(buffer.toString('base64'));
-  //           res.send(captchaImgBase64);
-  //         });
-  //   }).catch(console.log);
 
-  // });
 
 });
 
