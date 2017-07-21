@@ -28,6 +28,104 @@ app.use('/mofcom', mofcom.router);
 
 
 io.on('connection', function(socket){
+  socket.on('message', (data) => {
+    const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
+    const jwt = data.jwt;
+    let session = mofcom.mofcomSessions[roomId];
+    // console.log(session);
+    if (!session) {
+      session = mofcom.mofcomSessions[roomId] = mofcom.mofcomNewSession(roomId);
+    }
+    // console.log(session.roomId);
+
+    switch (true) {
+      case data.bot === 'mofcom' && data.action === 'newEntry':
+        const vehicle = data.data.vehicle;
+        console.log(vehicle.vin);
+        mofcom.newEntryPromiseFac(vehicle, jwt, session)
+          .then(result => {
+            console.log(result);
+            io.to(roomId).send({
+              by: 'newEntryAgainPromiseFac',
+              ok: true,
+              message: result.message,
+            });
+          })
+          .catch(error => {
+            console.log(error);
+            if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+              io.to(roomId).send({
+                by: 'newEntryPromiseFac',
+                ok: false,
+                message: error.message,
+                data: error.data // error.data = {captchaBase64}
+              });
+            }
+          })
+        break;
+      case data.bot === 'mofcom' && data.action === 'login':
+        const captcha = data.data.captcha;
+        mofcom.doLoginPromiseFac(captcha, session)
+          .then(result => {
+            console.log(result);
+            io.to(roomId).send({
+              by: 'doLoginPromiseFac',
+              ok: true,
+              message: result.message,
+              data: result.data // result.data = {formUrl}
+            });
+          })
+          .catch(error => console.log(error))
+        break;
+      case data.bot === 'mofcom' && data.action === 'newEntryAgain':
+        mofcom.newEntryAgainPromiseFac(session)
+          .then(result => {
+            console.log(result);
+            io.to(roomId).send({
+              by: 'newEntryAgainPromiseFac',
+              ok: true,
+              message: result.message,
+            });
+          })
+          .catch(error => {
+            console.log(error);
+            if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+              io.to(roomId).send({
+                by: 'newEntryPromiseFac',
+                ok: false,
+                message: error.message,
+                data: error.data // error.data = {captchaBase64}
+              });
+            }
+          })  
+
+        break;
+    }
+    
+    Rx.Observable.interval(6 * 1000)
+      .take(50)
+      .takeUntil(mofcom.finishedMofcomOpsRxx)
+      .subscribe(x => io.to(roomId).emit('mofcomProgressing', x));
+
+    io.to(roomId).send({message: 'hello there'});
+    // mofcom.mofcomNewEntryRxFac(vehicle, jwt, session)
+    //   .subscribe(result => {
+    //     if (result.message.indexOf('not logged in') > -1) {
+
+    //     }
+    //   })
+    // mofcom.mofcomActionsRxx.next({action: 'mofcomEntry', data: {jwt, vehicle}});
+    // mofcom.mofcomResultRxx.subscribe(console.log);
+
+  });
+
+  socket.on('disconnect', () => {
+    const roomId = socket.client.id;
+    // do some unsubscriptions
+    mofcom.mofcomSessions[roomId] = null;
+  })
+
+
   socket.on('captcha', (data) => {
     console.log(data);
     const jwt = data.jwt;

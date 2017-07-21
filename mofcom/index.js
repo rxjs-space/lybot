@@ -10,9 +10,368 @@ const Rx = require('rxjs/Rx');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const vehicleTypeXPathHash = require('./constants').vehicleTypeXPathHash;
+const lastInputElementXPathHash = require('./constants').lastInputElementXPathHash;
+const vehicleDetailsXPathHash = require('./constants').vehicleDetailsXPathHash;
+const nonTextInputsHash = require('./constants').nonTextInputsHash;
+const nonTextInputOptionXPathHashes = require('./constants').nonTextInputOptionXPathHashes;
+const commonElementXPathHashes = require('./constants').commonElementXPathHashes;
+const loginCheckSuccessInterval = require('./constants').loginCheckSuccessInterval;
+
 const drivers = {};
+const formUrls = {};
 const newActionRxxs = {};
 const url = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
+
+const mofcomSessions = {};
+
+const finishedMofcomOpsRxx = new Rx.Subject();
+exports.finishedMofcomOpsRxx = finishedMofcomOpsRxx;
+
+exports.mofcomSessions = mofcomSessions;
+exports.mofcomNewSession = (roomId) => {
+  let session = {
+    roomId,
+    driver: new webdriver.Builder()
+      .forBrowser('phantomjs')
+      .build(),
+    formUrl: '',
+    newActionRxx: new Rx.Subject(), // each newAction will trigger a new timer to clear session
+    mofcomResultRxx: new Rx.Subject(),
+    mofcomActionsRxx: new Rx.Subject(),
+    vehicleCache: null,
+    lastLoginCheckSuccessAt: null
+  };
+
+  const canBedleForXMins = 3;
+  const timerRx = Rx.Observable
+    .timer(canBedleForXMins * 60 * 1000)
+    .map(() => {
+      if (session.driver) {
+        console.log(`session for ${roomId} is now cleared after ${canBedleForXMins} mins idling.`)
+        session.driver.quit();
+        delete mofcomSessions[roomId];
+      }
+    });
+  session.newActionRxx
+    .switchMap(() => timerRx)
+    .subscribe();
+  session.newActionRxx.next('anything');
+
+  return session;
+}
+
+
+exports.newEntryPromiseFac = (vehicle, jwt, session) => {
+  session.newActionRxx.next('anything');
+  const roomId = session.roomId;
+  return new Promise((resolve, reject) => {
+    checkLoginPromiseFac(session)
+      .then(isLoggedIn => {
+        if (isLoggedIn) {
+          session.vehicleCache = null;
+          console.log('loggedIn');
+          // data input
+          prepareNewEntryPromise(vehicle, session)
+            .then(result => resolve({
+              message: result.message
+            }))
+            .catch(error => reject({
+              message: error.message
+            }))
+
+        } else {
+          session.vehicleCache = vehicle;
+          getCaptchaPromiseFac(session)
+            .then(captchaBase64 => reject({
+              message: 'notLoggedIn',
+              data: {captchaBase64}
+            }))
+            .catch(error => reject({
+              message: error
+            }));
+        }
+      })
+  })
+}
+
+exports.newEntryAgainPromiseFac = (session) => {
+  session.newActionRxx.next('anything');
+  const roomId = session.roomId;
+  return new Promise((resolve, reject) => {
+    checkLoginPromiseFac(session)
+      .then(isLoggedIn => {
+        if (isLoggedIn) {
+          const vehicle = session.vehicleCache;
+          session.vehicleCache = null;
+          console.log('loggedIn');
+          // data input
+          prepareNewEntryPromise(vehicle, session)
+            .then(result => resolve({
+              message: result.message
+            }))
+            .catch(error => reject({
+              message: error.message
+            }))
+
+        } else {
+          getCaptchaPromiseFac(session)
+            .then(captchaBase64 => reject({
+              message: 'notLoggedIn',
+              data: {captchaBase64}
+            }))
+            .catch(error => reject({
+              message: error
+            }));
+        }
+      })
+  })
+}
+
+const prepareNewEntryPromise = (vehicle, session) => {
+  session.newActionRxx.next('anything');
+  const roomId = session.roomId;
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
+
+  const driver = session.driver;
+  const formUrl = session.formUrl;
+
+  return new Promise((resolve, reject) => {
+
+    // const getUrlAfterLoginPromise = (currentUrl) => {
+    //   return new Promise((resolve, reject) => {
+    //     if (currentUrl !== urlAfterLogin) {
+    //       driver.get(urlAfterLogin).then(resolve).catch(reject)
+    //     } else {
+    //       resolve('anything');
+    //     }
+    //   })
+    // }
+
+    co(function*() {
+      // const currentUrl = yield driver.getCurrentUrl();
+      yield driver.get(formUrl);
+      console.log(roomId, '[prepare new entry]', 'after getting formUrl:', calculateTimeElapsed());
+      yield driver.wait(
+        until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
+      , 20 * 1000);
+      console.log(roomId, '[prepare new entry]', 'after seeing the title:', calculateTimeElapsed());
+
+      yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
+      console.log(roomId, '[prepare new entry] after taking 03-01:', calculateTimeElapsed());
+
+      yield driver.findElement(By.xpath(commonElementXPathHashes['车辆信息检索'])).click(); // 车辆信息检索
+      yield driver.wait(until.elementLocated(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])));
+      yield driver.findElement(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])).click(); // 新建车辆 by mofcomRegisterType
+      yield driver.wait(until.elementLocated(By.xpath(lastInputElementXPathHash[vehicle.mofcomRegisterType]))); // until last input element is located
+      console.log(roomId, '[prepare new entry] after locating the last input element:', calculateTimeElapsed());
+
+      const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
+      if (vehicle.owner.isPerson) {
+        delete xpathHash['agent.name'];
+        delete xpathHash['agent.idNo'];
+      }
+      const items = Object.keys(xpathHash);
+      const nonTextInputs = nonTextInputsHash[vehicle.mofcomRegisterType];
+
+      yield coForEach(items, function*(item) {
+        console.log(item);
+        routes = item.split('.');
+        let value = vehicle[routes[0]];
+        if (routes.length > 1) {
+          for (let i = 1; i < routes.length; i++) {
+            if (value) {
+              value = value[routes[i]];
+            } else {
+              value = '';
+              break;
+            }
+          }
+        }
+        console.log(value);
+        switch (true) {
+          case item === 'owner.isPerson' && value === false: // if the owner is not a person
+            yield driver.findElement(By.xpath(xpathHash['owner.isPerson'])).click();
+            yield driver.findElement(By.xpath('//*[@id="1048"]/div[2]')).click(); // click on '否'
+            break;
+          case item === 'vehicle.useCharacter':
+            break;
+          case nonTextInputs.indexOf(item) === -1 && !!value.length:
+            yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+            break;
+          // default:
+          //   // yield driver.findElement(By.xpath(vehicleDetailsXPathHash[vehicle.mofcomRegisterType][item])).sendKeys('');
+          //   yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+        }
+      });
+      console.log(roomId, '[prepare new entry] after filling in:', calculateTimeElapsed());
+
+
+
+      yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
+      console.log(roomId, '[prepare new entry] after taking 03-02:', calculateTimeElapsed());
+      finishedMofcomOpsRxx.next('finishedInput');
+      resolve({
+        message: 'finishedInput'
+      })
+      // return res.json({
+      //   ok: true, message: 'typing in data'
+      // })
+
+    }).catch(error => reject({
+      message: error
+    }));
+
+
+
+  })
+}
+
+exports.doLoginPromiseFac = (captcha, session) => {
+  session.newActionRxx.next('anything');
+  const roomId = session.roomId;
+  const driver = session.driver;
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
+  return new Promise((resolve, reject) => {
+    co(function*() {
+      const username = process.env.MOFCOM_USERNAME;
+      const password = process.env.MOFCOM_PASSWORD;
+      yield driver.findElement(By.name('userName')).sendKeys(username);
+      yield driver.findElement(By.name('id_password')).sendKeys(password);
+      yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
+      console.log(roomId, '[doLogin] after inputing upc:', calculateTimeElapsed());
+
+      yield kodakPromise(driver, 'png/02-01-before-click-submit.png');
+      console.log(roomId, '[doLogin] after 02-01 png:', calculateTimeElapsed());
+
+      yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
+      console.log(roomId, '[doLogin] after click submit:', calculateTimeElapsed());
+
+      console.log('submitted');
+
+      yield driver.wait(until.titleContains('商务部业务系统统一平台--汽车流通信息管理'));
+      console.log(roomId, '[doLogin] after title updates:', calculateTimeElapsed());
+
+      yield kodakPromise(driver, 'png/02-02-after-loggingin.png');
+      console.log(roomId, '[doLogin] after taking 02-02.png:', calculateTimeElapsed());
+
+      session.formUrl = yield driver.getCurrentUrl();
+      console.log(roomId, '[doLogin] after another round getting current url:', calculateTimeElapsed());
+
+      loginRxx.next('ok');
+      resolve({
+        message: 'loggedIn',
+        data: {formUrl: session.formUrl}        
+      })
+    }).catch(error => reject({message: error}));
+  })
+
+}
+
+
+const getCaptchaPromiseFac = (session) => {
+  return new Promise((resolve, reject) => {
+    const roomId = session.roomId;
+    const driver = session.driver;
+    let latestTimestamp = Date.now();
+    const calculateTimeElapsed = () => {
+      const now = Date.now();
+      const timeElapsed = now - latestTimestamp;
+      latestTimestamp = now;
+      return timeElapsed;
+    }
+
+    co(function*() {
+      yield driver.get(url);
+      console.log(roomId, '[get captcha] after opeing login url:', calculateTimeElapsed());
+      yield driver.wait(
+        until.titleContains('商务部业务系统统一平台')
+      , 30 * 1000);
+      console.log(roomId, '[get captcha] after seeing the title:', calculateTimeElapsed());
+      const captchaElem = driver.findElement(By.id('identifyCode'));
+      const size = yield captchaElem.getSize();
+      const location = yield captchaElem.getLocation();
+      console.log(roomId, '[get captcha] after getting size and localtion of captcha:', calculateTimeElapsed());
+      const screenshotBase64 = yield driver.takeScreenshot();
+      console.log(roomId, '[get captcha] after taking screenshot:', calculateTimeElapsed());
+      const buf = Buffer.from(screenshotBase64, 'base64');
+      const screenshotJimp = yield Jimp.read(buf);
+      const captchaBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
+      console.log(roomId, '[get captcha] after cropping the screenshot:', calculateTimeElapsed());
+      return resolve(captchaBase64)
+    }).catch(error => reject(error));
+  })
+}
+
+
+const checkLoginPromiseFac = (session) => {
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
+  const roomId = session.roomId;
+  const formUrl = session.formUrl;
+  const driver = session.driver;
+  return new Promise((resolve) => {
+    switch (true) {
+      case !formUrl:
+        resolve(false);
+        break;
+      case (Date.now() - session.lastLoginCheckSuccessAt) <= loginCheckSuccessInterval:
+        resolve(true);
+        break;
+      default:
+        driver.get(formUrl).then(() => {
+          console.log(roomId, '[check login] after trying to open formUrl', calculateTimeElapsed());
+          kodakPromise(driver, 'png/0x-0x-after-getting-formUrl.png');
+          const spinnerXPath = '/html/body/div[2]/img';
+          driver.findElement(By.xpath(spinnerXPath))
+            .then(() => {
+              console.log(roomId, '[check login] after locating the spinner element', calculateTimeElapsed())
+              session.lastLoginCheckSuccessAt = Date.now();
+              resolve(true);
+              // driver.wait(until.elementLocated(By.xpath(commonElementXPathHashes['车辆信息检索'])))
+            })
+            .catch((error) => {
+              console.log(error);
+              console.log(roomId, '[check login] after failed to locate the spinner element', calculateTimeElapsed());
+              resolve(false);            
+            })
+      })
+    }
+    // if (!formUrl) {resolve(false); }
+    // if ((Date.now(); - session.lastLoginCheckSuccessAt) <= loginCheckSuccessInterval) {
+    //   resolve(true);
+    // }
+    // console.log(formUrl);
+    // session.driver.get(formUrl).then(() => {
+    //   console.log(roomId, '[check login] after trying to open formUrl', calculateTimeElapsed())
+    //   driver.findElement(By.xpath(commonElementXPathHashes['车辆信息检索']))
+    //     .then(() => {
+    //       console.log(roomId, '[check login] after locating the 车辆信息检索 element', calculateTimeElapsed())
+    //       session.lastLoginCheckSuccessAt = now; resolve(true); })
+    //     .catch(() => {
+    //       console.log(roomId, '[check login] after failed to locate the 车辆信息检索 element', calculateTimeElapsed())
+    //       resolve(false); })
+    // })
+  })
+}
+
 
 const driverClear = (jwt) => {
   if (drivers[jwt]) {
@@ -96,79 +455,6 @@ const waitResultPromise = (dirver, untilDetail, timeout) => {
   })
 }
 
-const vehicleTypeXPathHash = {
-  '1': '//*[@id="1008"]/div[10]/div[1]/span', // 新建车辆
-  '2': '//*[@id="1008"]/div[10]/div[2]/span', // 新建异地报废车辆
-  '3': '//*[@id="1008"]/div[10]/div[3]/span', // 新建信息不全车辆
-  '4': '//*[@id="1008"]/div[10]/div[4]/span', // 新建罚没车辆
-}
-
-const lastInputElementXPathHash = {
-  '1': '//*[@id="1038"]/input',
-  '2': '//*[@id="1038"]/input',
-  '3': '//*[@id="1094"]/input',
-  '4': '//*[@id="1150"]/input'
-}
-
-const vehicleDetailsXPathHash = {
-  '1': {
-    'owner.isPerson': '//*[@id="1047"]/input',
-    'owner.name': '//*[@id="1049"]/input',
-    'owner.idNo': '//*[@id="1050"]/input',
-    'owner.tel': '//*[@id="1051"]/input',
-    'owner.address': '//*[@id="1052"]/input',
-    'owner.zipCode': '//*[@id="1053"]/input',
-    'agent.name': '//*[@id="1054"]/input',
-    'agent.idNo': '//*[@id="1055"]/input',
-    'vehicle.vehicleType': '//*[@id="1021"]/input',
-    'vehicle.useCharacter': '//*[@id="1023"]/input',
-  }
-}
-
-const nonTextInputsHash = {
-  '1': ['owner.isPerson', 'vehicle.vehicleType', 'vehicle.useCharacter']
-}
-
-const nonTextInputOptionXPathHashes = {
-  '1': {
-    'owner.isPerson': {
-      false: '//*[@id="1048"]/div[2]'
-    },
-    'vehicle.vehicleType': {
-      大型载客车: '//*[@id="1022"]/div[1]',
-      中型载客车: '//*[@id="1022"]/div[2]',
-      小型载客车: '//*[@id="1022"]/div[3]',
-      微型载客车: '//*[@id="1022"]/div[4]',
-      轿车: '//*[@id="1022"]/div[5]',
-      '轿车(小型载客车)': '//*[@id="1022"]/div[6]',
-      '轿车(微型载客车)': '//*[@id="1022"]/div[7]',
-      重型载货车: '//*[@id="1022"]/div[8]',
-      中型载货车: '//*[@id="1022"]/div[9]',
-      轻型载货车: '//*[@id="1022"]/div[10]',
-      微型载货车: '//*[@id="1022"]/div[11]',
-      '三轮汽车（原三轮农用运输车）': '//*[@id="1022"]/div[12]',
-      '低速货车（原四轮农用运输车）': '//*[@id="1022"]/div[13]',
-      专项作业车: '//*[@id="1022"]/div[14]',
-      轮式专用机械车: '//*[@id="1022"]/div[15]',
-      普通摩托车: '//*[@id="1022"]/div[16]',
-      轻便摩托车: '//*[@id="1022"]/div[17]',
-      重型挂车: '//*[@id="1022"]/div[18]',
-      中型挂车: '//*[@id="1022"]/div[19]',
-      轻型挂车: '//*[@id="1022"]/div[20]',
-      半挂牵引车: '//*[@id="1022"]/div[21]',
-      全挂车: '//*[@id="1022"]/div[22]',
-    },
-    'vehicle.useCharacter': {
-      '农村客运(营运)': '//*[@id="1024"]/div[1]',
-      '城市公交(营运)': '//*[@id="1024"]/div[2]',
-      '出租客运(营运)': '//*[@id="1024"]/div[3]',
-      '旅游客运(营运)': '//*[@id="1024"]/div[4]',
-      '营运其他(营运)': '//*[@id="1024"]/div[5]',
-      '非营运': '//*[@id="1024"]/div[6]',
-      '危化品运输': '//*[@id="1024"]/div[7]',
-    }
-  }
-}
 
 const kodakPromise = (driver, fileName) => {
   if (isProduction) {return Promise.resolve('anything'); }
@@ -233,9 +519,15 @@ router.post('/new-vehicle', (req, res) => {
   }
 
   co(function*() {
-    const currentUrl = yield driver.getCurrentUrl();
-    console.log(jwtLast4, '[nv]', 'after getting currentUrl:', calculateTimeElapsed());
-    yield getUrlAfterLoginPromise(currentUrl);
+    // const currentUrl = yield driver.getCurrentUrl();
+    yield driver.get(urlAfterLogin);
+    console.log(jwtLast4, '[nv]', 'after getting urlAfterLogin:', calculateTimeElapsed());
+    yield driver.wait(
+      until.titleContains('商务部业务系统统一平台--汽车流通信息管理')
+    , 20 * 1000);
+    console.log(jwtLast4, '[nv]', 'after seeing the title:', calculateTimeElapsed());
+
+    // yield getUrlAfterLoginPromise(currentUrl);
     // const waitResult = yield waitResultPromise(driver, until.titleContains('商务部业务系统统一平台--汽车流通信息管理'), 20 * 1000);
     // console.log(jwtLast4, '[nv] after seeing the right title:', calculateTimeElapsed());
     // if (!waitResult.ok) {
@@ -249,7 +541,7 @@ router.post('/new-vehicle', (req, res) => {
     yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
     console.log(jwtLast4, '[nv] after taking 03-01:', calculateTimeElapsed());
 
-    yield driver.findElement(By.xpath('//*[@id="1008"]/div[9]/span')).click(); // 车辆信息检索
+    yield driver.findElement(By.xpath(commonElementXPathHashes['车辆信息检索'])).click();
     yield driver.wait(until.elementLocated(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])));
     yield driver.findElement(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])).click(); // 新建车辆 by mofcomRegisterType
     yield driver.wait(until.elementLocated(By.xpath(lastInputElementXPathHash[vehicle.mofcomRegisterType]))); // until last input element is located
@@ -314,6 +606,10 @@ router.post('/new-vehicle', (req, res) => {
 
 const loginRxx = new Rx.Subject();
 exports.loginRxx = loginRxx;
+
+
+
+
 exports.loginRx = (captcha, jwt) => {
   const jwtLast4 = jwt.substr(-4);
   let latestTimestamp = Date.now();
@@ -451,6 +747,7 @@ router.post('/login', (req, res) => {
   }).catch(handleErrorFac(res));
   
 })
+
 
 router.post('/init', (req, res) => {
   const jwt = req.headers ? req.headers['authorization'].substring(7) : null;
