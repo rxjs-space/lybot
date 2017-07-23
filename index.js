@@ -46,9 +46,10 @@ io.on('connection', function(socket){
           .then(result => {
             console.log(result);
             io.to(roomId).send({
-              by: 'newEntryAgainPromiseFac',
+              by: 'newEntryPromiseFac',
               ok: true,
               message: result.message,
+              data: result.data
             });
           })
           .catch(error => {
@@ -85,6 +86,7 @@ io.on('connection', function(socket){
               by: 'newEntryAgainPromiseFac',
               ok: true,
               message: result.message,
+              data: result.data
             });
           })
           .catch(error => {
@@ -107,7 +109,6 @@ io.on('connection', function(socket){
       .takeUntil(mofcom.finishedMofcomOpsRxx)
       .subscribe(x => io.to(roomId).emit('mofcomProgressing', x));
 
-    io.to(roomId).send({message: 'hello there'});
     // mofcom.mofcomNewEntryRxFac(vehicle, jwt, session)
     //   .subscribe(result => {
     //     if (result.message.indexOf('not logged in') > -1) {

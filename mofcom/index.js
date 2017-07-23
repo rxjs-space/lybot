@@ -48,7 +48,7 @@ exports.mofcomNewSession = (roomId) => {
     .timer(canBedleForXMins * 60 * 1000)
     .map(() => {
       if (session.driver) {
-        console.log(`session for ${roomId} is now cleared after ${canBedleForXMins} mins idling.`)
+        console.log(`session for ${roomId} is now cleared after ${canBedleForXMins} mins idling at ${new Date()}.`)
         session.driver.quit();
         delete mofcomSessions[roomId];
       }
@@ -73,12 +73,8 @@ exports.newEntryPromiseFac = (vehicle, jwt, session) => {
           console.log('loggedIn');
           // data input
           prepareNewEntryPromise(vehicle, session)
-            .then(result => resolve({
-              message: result.message
-            }))
-            .catch(error => reject({
-              message: error.message
-            }))
+            .then(result => resolve(result))
+            .catch(error => reject(error))
 
         } else {
           session.vehicleCache = vehicle;
@@ -107,12 +103,8 @@ exports.newEntryAgainPromiseFac = (session) => {
           console.log('loggedIn');
           // data input
           prepareNewEntryPromise(vehicle, session)
-            .then(result => resolve({
-              message: result.message
-            }))
-            .catch(error => reject({
-              message: error.message
-            }))
+            .then(result => resolve(result))
+            .catch(error => reject(error))
 
         } else {
           getCaptchaPromiseFac(session)
@@ -212,13 +204,30 @@ const prepareNewEntryPromise = (vehicle, session) => {
       });
       console.log(roomId, '[prepare new entry] after filling in:', calculateTimeElapsed());
 
-
-
+      // yield driver.executeScript(`
+      //   var firstElement = document.evaluate('${xpathForFirstElement}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+      //   firstElement.scrollIntoView();
+      // `)
+  
       yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
       console.log(roomId, '[prepare new entry] after taking 03-02:', calculateTimeElapsed());
+
+      const formElem = driver.findElement(By.xpath('//*[@id="1017"]/div'));
+      const size = yield formElem.getSize();
+      const location = yield formElem.getLocation();
+      console.log(roomId, '[prepare new entry] after getting size and localtion of formElem:', calculateTimeElapsed());
+      const screenshotBase64 = yield driver.takeScreenshot();
+      console.log(roomId, '[prepare new entry] after taking screenshot:', calculateTimeElapsed());
+      const buf = Buffer.from(screenshotBase64, 'base64');
+      const screenshotJimp = yield Jimp.read(buf);
+      const resultBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
+      console.log(roomId, '[prepare new entry] after cropping the screenshot:', calculateTimeElapsed());
+
+      // const resultBase64 = yield driver.takeScreenshot()
       finishedMofcomOpsRxx.next('finishedInput');
       resolve({
-        message: 'finishedInput'
+        message: 'finishedInput',
+        data: {resultBase64}
       })
       // return res.json({
       //   ok: true, message: 'typing in data'
@@ -314,6 +323,7 @@ const getCaptchaPromiseFac = (session) => {
     }).catch(error => reject(error));
   })
 }
+
 
 
 const checkLoginPromiseFac = (session) => {
