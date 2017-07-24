@@ -29,6 +29,7 @@ app.use('/mofcom', mofcom.router);
 
 io.on('connection', function(socket){
   socket.on('message', (data) => {
+    console.log('receiving message on', new Date(), data)
     const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
     const jwt = data.jwt;
     let session = mofcom.mofcomSessions[roomId];

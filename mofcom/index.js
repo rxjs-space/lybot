@@ -17,7 +17,6 @@ const nonTextInputsHash = require('./constants').nonTextInputsHash;
 const nonTextInputOptionXPathHashes = require('./constants').nonTextInputOptionXPathHashes;
 const commonElementXPathHashes = require('./constants').commonElementXPathHashes;
 const loginCheckSuccessInterval = require('./constants').loginCheckSuccessInterval;
-
 const drivers = {};
 const formUrls = {};
 const newActionRxxs = {};
@@ -95,32 +94,41 @@ exports.newEntryAgainPromiseFac = (session) => {
   session.newActionRxx.next('anything');
   const roomId = session.roomId;
   return new Promise((resolve, reject) => {
-    checkLoginPromiseFac(session)
-      .then(isLoggedIn => {
-        if (isLoggedIn) {
-          const vehicle = session.vehicleCache;
-          session.vehicleCache = null;
-          console.log('loggedIn');
-          // data input
-          prepareNewEntryPromise(vehicle, session)
-            .then(result => resolve(result))
-            .catch(error => reject(error))
+    const vehicle = session.vehicleCache;
+    session.vehicleCache = null;
+    console.log('loggedIn');
+    // data input
+    prepareNewEntryPromise(vehicle, session)
+      .then(result => resolve(result))
+      .catch(error => reject(error));
 
-        } else {
-          getCaptchaPromiseFac(session)
-            .then(captchaBase64 => reject({
-              message: 'notLoggedIn',
-              data: {captchaBase64}
-            }))
-            .catch(error => reject({
-              message: error
-            }));
-        }
-      })
+    // checkLoginPromiseFac(session)
+    //   .then(isLoggedIn => {
+    //     if (isLoggedIn) {
+    //       const vehicle = session.vehicleCache;
+    //       session.vehicleCache = null;
+    //       console.log('loggedIn');
+    //       // data input
+    //       prepareNewEntryPromise(vehicle, session)
+    //         .then(result => resolve(result))
+    //         .catch(error => reject(error))
+
+    //     } else {
+    //       getCaptchaPromiseFac(session)
+    //         .then(captchaBase64 => reject({
+    //           message: 'notLoggedIn',
+    //           data: {captchaBase64}
+    //         }))
+    //         .catch(error => reject({
+    //           message: error
+    //         }));
+    //     }
+    //   })
   })
 }
 
 const prepareNewEntryPromise = (vehicle, session) => {
+  const optionHashes = nonTextInputOptionXPathHashes[vehicle.mofcomRegisterType];
   session.newActionRxx.next('anything');
   const roomId = session.roomId;
   let latestTimestamp = Date.now();
@@ -145,7 +153,6 @@ const prepareNewEntryPromise = (vehicle, session) => {
     //     }
     //   })
     // }
-
     co(function*() {
       // const currentUrl = yield driver.getCurrentUrl();
       yield driver.get(formUrl);
@@ -189,8 +196,12 @@ const prepareNewEntryPromise = (vehicle, session) => {
         console.log(value);
         switch (true) {
           case item === 'owner.isPerson' && value === false: // if the owner is not a person
-            yield driver.findElement(By.xpath(xpathHash['owner.isPerson'])).click();
+            yield driver.findElement(By.xpath(xpathHash[item])).click();
             yield driver.findElement(By.xpath('//*[@id="1048"]/div[2]')).click(); // click on '否'
+            break;
+          case item === 'vehicle.vehicleType':
+            yield driver.findElement(By.xpath(xpathHash[item])).click();
+            yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
           case item === 'vehicle.useCharacter':
             break;
