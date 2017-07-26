@@ -26,7 +26,7 @@ exports.vehicleDetailsXPathHash = {
     'agent.idNo': '//*[@id="1055"]/input',
     'vehicle.vehicleType': '//*[@id="1021"]/input',
     'vehicle.useCharacter': '//*[@id="1023"]/input',
-    // 'vehicle.isNEV': '//*[@id="1043"]/input',
+    'vehicle.isNEV': '//*[@id="1043"]/input',
     // 'vehicle.brand': '//*[@id="1025"]/input',
     // 'vehicle.model': '//*[@id="1026"]/input',
     // 'vehicle.plateNo': '//*[@id="1027"]/input',
@@ -47,7 +47,7 @@ exports.nonTextInputsHash = {
     'owner.isPerson', 
     'vehicle.vehicleType', 
     'vehicle.useCharacter',
-    // 'vehicle.isNEV',
+    'vehicle.isNEV',
     // 'vehicle.fuelType',
     // 'vehicle.registrationDate',
   ]
@@ -90,7 +90,15 @@ exports.nonTextInputOptionXPathHashes = {
       '营运其他(营运)': '//*[@id="1024"]/div[5]',
       '非营运': '//*[@id="1024"]/div[6]',
       '危化品运输': '//*[@id="1024"]/div[7]',
-    }
+    },
+    'vehicle.isNEV': {
+      否: '//*[@id="1044"]/div[1]',
+      是: '//*[@id="1044"]/div[2]'
+    },
+    'owner.isPerson': {
+      否: '//*[@id="1048"]/div[2]',
+      是: '//*[@id="1048"]/div[1]'
+    },
   }
 }
 
