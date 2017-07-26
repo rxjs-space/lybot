@@ -151,7 +151,15 @@ const prepareNewEntryPromise = (vehicle, session) => {
 
       yield coForEach(items, function*(item) {
         console.log(item);
-        routes = item.split('.');
+        let itemInVehicle;
+        switch (item) {
+          case 'vehicle.displacementL':
+            itemInVehicle = 'vehicle.displacementML';
+            break;
+          default:
+            itemInVehicle = item;
+        }
+        routes = itemInVehicle.split('.');
         let value = vehicle[routes[0]];
         if (routes.length > 1) {
           for (let i = 1; i < routes.length; i++) {
@@ -163,6 +171,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
             }
           }
         }
+        
         console.log(value);
         switch (true) {
 
@@ -174,13 +183,17 @@ const prepareNewEntryPromise = (vehicle, session) => {
           //   yield driver.findElement(By.xpath(xpathHash[item])).click();
           //   yield driver.findElement(By.xpath(optionHashes[item][value])).click();
           //   break;
-          
+          case item === 'vehicle.displacementL' && !!value:
+            value = (Math.round((value / 1000) * 10) / 10).toString();
+            console.log('displacement in L:', value);
+            yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+            break;
           case nonTextInputs.indexOf(item) > -1:
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
-          case nonTextInputs.indexOf(item) === -1 && !!value.length:
+          case nonTextInputs.indexOf(item) === -1 && !!value:
             yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
             break;
           // default:
