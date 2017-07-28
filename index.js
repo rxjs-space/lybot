@@ -26,11 +26,12 @@ app.use('/mofcom', mofcom.router);
 // });
 
 
-
-io.on('connection', function(socket){
+const mofcomNSP = io.of('/mofcom');
+mofcomNSP.on('connection', function(socket){
+  const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
+  socket.join(roomId);
   socket.on('message', (data) => {
     console.log('receiving message on', new Date(), data)
-    const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
     const jwt = data.jwt;
     let session = mofcom.mofcomSessions[roomId];
     // console.log(session);
@@ -46,7 +47,7 @@ io.on('connection', function(socket){
         mofcom.newEntryPromiseFac(vehicle, jwt, session)
           .then(result => {
             console.log(result);
-            io.to(roomId).send({
+            mofcomNSP.to(roomId).send({
               by: 'newEntryPromiseFac',
               ok: true,
               message: result.message,
@@ -56,7 +57,14 @@ io.on('connection', function(socket){
           .catch(error => {
             console.log(error);
             if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-              io.to(roomId).send({
+              console.log('prepared to send captcha');
+              // socket.emit('message', {
+              //   by: 'newEntryPromiseFac',
+              //   ok: false,
+              //   message: error.message,
+              //   data: error.data // error.data = {captchaBase64}
+              // });
+              mofcomNSP.to(roomId).send({
                 by: 'newEntryPromiseFac',
                 ok: false,
                 message: error.message,
@@ -70,7 +78,7 @@ io.on('connection', function(socket){
         mofcom.doLoginPromiseFac(captcha, session)
           .then(result => {
             console.log(result);
-            io.to(roomId).send({
+            mofcomNSP.to(roomId).send({
               by: 'doLoginPromiseFac',
               ok: true,
               message: result.message,
@@ -83,7 +91,7 @@ io.on('connection', function(socket){
         mofcom.newEntryAgainPromiseFac(session)
           .then(result => {
             console.log(result);
-            io.to(roomId).send({
+            mofcomNSP.to(roomId).send({
               by: 'newEntryAgainPromiseFac',
               ok: true,
               message: result.message,
@@ -93,7 +101,7 @@ io.on('connection', function(socket){
           .catch(error => {
             console.log(error);
             if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-              io.to(roomId).send({
+              mofcomNSP.to(roomId).send({
                 by: 'newEntryPromiseFac',
                 ok: false,
                 message: error.message,
@@ -108,7 +116,7 @@ io.on('connection', function(socket){
     Rx.Observable.interval(6 * 1000)
       .take(50)
       .takeUntil(mofcom.finishedMofcomOpsRxx)
-      .subscribe(x => io.to(roomId).emit('mofcomProgressing', x));
+      .subscribe(x => mofcomNSP.to(roomId).emit('mofcomProgressing', x));
 
     // mofcom.mofcomNewEntryRxFac(vehicle, jwt, session)
     //   .subscribe(result => {
@@ -136,12 +144,12 @@ io.on('connection', function(socket){
     // user Observable.interval to keep avoid the socket being killed by heroku
     Rx.Observable.interval(20 * 1000)
       .takeUntil(mofcom.loginRxx)
-      .subscribe(x => io.to(roomId).emit('progressing', x));
+      .subscribe(x => mofcomNSP.to(roomId).emit('progressing', x));
     mofcom.loginRx(captcha, jwt)
       .take(1)
       .subscribe(
-        result => io.to(roomId).send(result), // .send method will emit 'message' event
-        error => io.to(roomId).emit('lyError', error)
+        result => mofcomNSP.to(roomId).send(result), // .send method will emit 'message' event
+        error => mofcomNSP.to(roomId).emit('lyError', error)
       );
   })
 });
