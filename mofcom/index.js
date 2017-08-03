@@ -141,6 +141,8 @@ const prepareNewEntryPromise = (vehicle, session) => {
       yield driver.wait(until.elementLocated(By.xpath(lastInputElementXPathHash[vehicle.mofcomRegisterType]))); // until last input element is located
       console.log(roomId, '[prepare new entry] after locating the last input element:', calculateTimeElapsed());
 
+      yield kodakPromise(driver, 'png/03-01.5-still-before-typing-in.png');
+      console.log(roomId, '[prepare new entry] after taking 03-01.5:', calculateTimeElapsed());
       const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
       if (vehicle.owner.isPerson) {
         delete xpathHash['agent.name'];
@@ -206,7 +208,6 @@ const prepareNewEntryPromise = (vehicle, session) => {
         
         console.log(value);
         switch (true) {
-
           // case item === 'owner.isPerson' && value === false: // if the owner is not a person
           //   yield driver.findElement(By.xpath(xpathHash[item])).click();
           //   yield driver.findElement(By.xpath('//*[@id="1048"]/div[2]')).click(); // click on '否'
@@ -226,7 +227,22 @@ const prepareNewEntryPromise = (vehicle, session) => {
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
           case nonTextInputs.indexOf(item) === -1 && !!value:
-            yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+            if (item === 'vehicle.registrationDate') {
+              const year = value.substring(0, 4) * 1;
+              const month = value.substring(5, 7) * 1;
+              const date = value.substring(8, 10) * 1;
+              const monthStart = value.substring(0, 8) + '01';
+              const dayOfMonthStart = (new Date(monthStart)).getDay();
+              yield driver.findElement(By.xpath('//*[@id="1031"]/span')).click(); // click on the datepicker button
+              yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[2]')).click(); // click on the year button
+              yield driver.findElement(By.xpath(`//*[@id="1073"]/div[${year - 1900}]`)).click(); // click on the specific year
+              yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[4]')).click(); // click on the month button
+              yield driver.findElement(By.xpath(`//*[@id="1074"]/div[${month}]`)).click(); // click on the specific month
+              yield driver.findElement(By.xpath(`/html/body/div[13]/div[2]/div[${7 + date + dayOfMonthStart}]`)).click(); // click on the specific date
+              yield driver.findElement(By.xpath('/html/body/div[13]/div[3]/div[1]')).click(); // click on the datepicker confirm button
+            } else {
+              yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+            }
             break;
           // default:
           //   // yield driver.findElement(By.xpath(vehicleDetailsXPathHash[vehicle.mofcomRegisterType][item])).sendKeys('');
@@ -289,6 +305,9 @@ exports.doLoginPromiseFac = (captcha, session) => {
     co(function*() {
       const username = process.env.MOFCOM_USERNAME;
       const password = process.env.MOFCOM_PASSWORD;
+      if (!username || !password) {
+        throw new Error('username or password was not provided.');
+      }
       yield driver.findElement(By.name('userName')).sendKeys(username);
       yield driver.findElement(By.name('id_password')).sendKeys(password);
       yield driver.findElement(By.name('identifyingCode')).sendKeys(captcha);
