@@ -35,9 +35,9 @@ exports.vehicleDetailsXPathHash = {
     // 'vehicle.registrationDate': '//*[@id="1031"]/input',
     'vehicle.engineNo': '//*[@id="1032"]/input',
     'vin': '//*[@id="1033"]/input',
-    // 'vinConfirm': '//*[@id="1034"]/input',
+    'vinConfirm': '//*[@id="1034"]/input',
     'vehicle.totalMassKG': '//*[@id="1035"]/input',
-    // 'vehicle.lengthOverallM': '//*[@id="1036"]/input',
+    'vehicle.lengthOverallM': '//*[@id="1036"]/input',
     'vehicle.seats': '//*[@id="1037"]/input',
   }
 }

@@ -151,26 +151,58 @@ const prepareNewEntryPromise = (vehicle, session) => {
 
       yield coForEach(items, function*(item) {
         console.log(item);
-        let itemInVehicle;
+        let itemInVehicle, value, paths;
         switch (item) {
           case 'vehicle.displacementL':
-            itemInVehicle = 'vehicle.displacementML';
-            break;
-          default:
-            itemInVehicle = item;
-        }
-        routes = itemInVehicle.split('.');
-        let value = vehicle[routes[0]];
-        if (routes.length > 1) {
-          for (let i = 1; i < routes.length; i++) {
-            if (value) {
-              value = value[routes[i]];
+            // itemInVehicle = 'vehicle.displacementML';
+            if (vehicle['vehicle']['displacementML']) {
+              value = (Math.round((vehicle['vehicle']['displacementML'] / 1000) * 10) / 10).toString();
             } else {
               value = '';
-              break;
             }
-          }
+            break;
+          case 'vehicle.lengthOverallM':
+            // itemInVehicle = 'vehicle.lengthOverallMM';
+            if (vehicle['vehicle']['lengthOverallMM']) {
+              value = (Math.round((vehicle['vehicle']['lengthOverallMM'] / 1000) * 1000) / 1000).toString();
+            } else {
+              value = '';
+            }
+            break;
+          case 'vinConfirm':
+            value = vehicle['vin'];
+            break;
+          default:
+            paths = item.split('.');
+            value = vehicle[paths[0]];
+            if (paths.length > 1) {
+              for (let i = 1; i < paths.length; i++) {
+                if (value) {
+                  value = value[paths[i]];
+                } else {
+                  value = '';
+                  break;
+                }
+              }
+            }
         }
+        // paths = itemInVehicle.split('.');
+        // if (item === 'vinConfirm') {
+        //   value = vehicle['vin'];
+        // } else {
+        //   value = vehicle[paths[0]];
+        //   if (paths.length > 1) {
+        //     for (let i = 1; i < paths.length; i++) {
+        //       if (value) {
+        //         value = value[paths[i]];
+        //       } else {
+        //         value = '';
+        //         break;
+        //       }
+        //     }
+        //   }
+        // }
+
         
         console.log(value);
         switch (true) {
@@ -183,11 +215,11 @@ const prepareNewEntryPromise = (vehicle, session) => {
           //   yield driver.findElement(By.xpath(xpathHash[item])).click();
           //   yield driver.findElement(By.xpath(optionHashes[item][value])).click();
           //   break;
-          case item === 'vehicle.displacementL' && !!value:
-            value = (Math.round((value / 1000) * 10) / 10).toString();
-            console.log('displacement in L:', value);
-            yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
-            break;
+          // case item === 'vehicle.displacementL' && !!value:
+          //   value = (Math.round((value / 1000) * 10) / 10).toString();
+          //   console.log('displacement in L:', value);
+          //   yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
+          //   break;
           case nonTextInputs.indexOf(item) > -1:
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
