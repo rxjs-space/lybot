@@ -103,12 +103,38 @@ exports.submitNewEntryPromiseFac = (session) => {
       const submitButtonXPath = confirmAndNextButtonElementXPathHash[vehicle.mofcomRegisterType];
       console.log(vehicle);
       // get and return the mofcomRegistryRef ...
-      // yield driver.findElement(By.xpath(submitButtonXPath)).click();
+      yield driver.findElement(By.xpath(submitButtonXPath)).click();
+
+      // 保存成功/是
+      // /html/body/div[16]/div[3]/div[1]
+      // 保存
+      // //*[@id="1139"]/div/span/span
+      // 没有录入任何数据/是
+      // /html/body/div[16]/div[3]/div[1]
+      // 回收证明单编号
+      // //*[@id="1144"]/div/p[6]
+      // get inner text
+      // "回收证明单编号:HS-210000-1045-20170811-1"
+      // substring(8)
+      const firstStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
+      yield driver.wait(until.elementLocated(By.xpath(firstStageSavedYesXPath)));
+      yield driver.findElement(By.xpath(firstStageSavedYesXPath)).click();
+      const secondStageSaveButtonXPath = '//*[@id="1139"]/div/span/span';
+      yield driver.findElement(By.xpath(secondStageSaveButtonXPath)).click();
+      const secondStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
+      yield driver.wait(until.elementLocated(By.xpath(secondStageSavedYesXPath)));
+      yield driver.findElement(By.xpath(secondStageSavedYesXPath)).click();
+      const mofcomRefXPath = '//*[@id="1144"]/div/p[6]'
+      const mofcomRegisterRef = yield driver.executeScript(`
+        var mofcomRefElement = document.evaluate('${mofcomRefXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        return mofcomRefElement.innerText.substring(8);
+      `);
+
       session.vehicleUnderCooking = null;
       resolve({
         message: 'newEntrySubmitted',
         data: {
-          mofcomRegisterRef: 1
+          mofcomRegisterRef
         }
       });
 
