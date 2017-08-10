@@ -13,14 +13,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 const vehicleTypeXPathHash = require('./constants').vehicleTypeXPathHash;
 const lastInputElementXPathHash = require('./constants').lastInputElementXPathHash;
 const vehicleDetailsXPathHash = require('./constants').vehicleDetailsXPathHash;
+const dateElementXPathHash = require('./constants').dateElementXPathHash;
 const nonTextInputsHash = require('./constants').nonTextInputsHash;
 const nonTextInputOptionXPathHashes = require('./constants').nonTextInputOptionXPathHashes;
 const commonElementXPathHashes = require('./constants').commonElementXPathHashes;
 const loginCheckSuccessInterval = require('./constants').loginCheckSuccessInterval;
+const confirmAndNextButtonElementXPathHash = require('./constants').confirmAndNextButtonElementXPathHash;
+const topElementXPathHash = require('./constants').topElementXPathHash;
+
 const drivers = {};
 const formUrls = {};
 const newActionRxxs = {};
-const url = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
+const url = require('./constants').mofcomLoginUrl;
 
 const mofcomSessions = {};
 
@@ -39,6 +43,7 @@ exports.mofcomNewSession = (roomId) => {
     mofcomResultRxx: new Rx.Subject(),
     mofcomActionsRxx: new Rx.Subject(),
     vehicleCache: null,
+    vehicleUnderCooking: null,
     lastLoginCheckSuccessAt: null
   };
 
@@ -64,6 +69,7 @@ exports.mofcomNewSession = (roomId) => {
 exports.newEntryPromiseFac = (vehicle, jwt, session) => {
   session.newActionRxx.next('anything');
   const roomId = session.roomId;
+  session.vehicleUnderCooking = vehicle;
   return new Promise((resolve, reject) => {
     checkLoginPromiseFac(session)
       .then(isLoggedIn => {
@@ -74,7 +80,6 @@ exports.newEntryPromiseFac = (vehicle, jwt, session) => {
           prepareNewEntryPromise(vehicle, session)
             .then(result => resolve(result))
             .catch(error => reject(error))
-
         } else {
           session.vehicleCache = vehicle;
           getCaptchaPromiseFac(session)
@@ -87,6 +92,32 @@ exports.newEntryPromiseFac = (vehicle, jwt, session) => {
             }));
         }
       })
+  })
+}
+
+exports.submitNewEntryPromiseFac = (session) => {
+  session.newActionRxx.next('anything');
+  return new Promise((resolve, reject) => {
+    co(function*() {
+      const vehicle = session.vehicleUnderCooking;
+      const submitButtonXPath = confirmAndNextButtonElementXPathHash[vehicle.mofcomRegisterType];
+      console.log(vehicle);
+      // get and return the mofcomRegistryRef ...
+      // yield driver.findElement(By.xpath(submitButtonXPath)).click();
+      session.vehicleUnderCooking = null;
+      resolve({
+        message: 'newEntrySubmitted',
+        data: {
+          mofcomRegisterRef: 1
+        }
+      });
+
+    }).catch(error => {
+      reject({
+        message: error
+      })
+    })
+
   })
 }
 
@@ -136,14 +167,18 @@ const prepareNewEntryPromise = (vehicle, session) => {
       console.log(roomId, '[prepare new entry] after taking 03-01:', calculateTimeElapsed());
 
       yield driver.findElement(By.xpath(commonElementXPathHashes['车辆信息检索'])).click(); // 车辆信息检索
+            console.log(roomId, '[prepare new entry] after clicking on 车辆信息检索:', calculateTimeElapsed());
       yield driver.wait(until.elementLocated(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])));
+            console.log(roomId, '[prepare new entry] after locating vehicle.mofcomRegisterType:', calculateTimeElapsed());
       yield driver.findElement(By.xpath(vehicleTypeXPathHash[vehicle.mofcomRegisterType])).click(); // 新建车辆 by mofcomRegisterType
+            console.log(roomId, '[prepare new entry] after clicking vehicle.mofcomRegisterType:', calculateTimeElapsed());
       yield driver.wait(until.elementLocated(By.xpath(lastInputElementXPathHash[vehicle.mofcomRegisterType]))); // until last input element is located
-      console.log(roomId, '[prepare new entry] after locating the last input element:', calculateTimeElapsed());
+      console.log(roomId, `[prepare new entry] after locating the last input element for type ${vehicle.mofcomRegisterType}:`, calculateTimeElapsed());
 
       yield kodakPromise(driver, 'png/03-01.5-still-before-typing-in.png');
       console.log(roomId, '[prepare new entry] after taking 03-01.5:', calculateTimeElapsed());
       const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
+      const dateXPathHash = Object.assign({}, dateElementXPathHash[vehicle.mofcomRegisterType]);
       if (vehicle.owner.isPerson) {
         delete xpathHash['agent.name'];
         delete xpathHash['agent.idNo'];
@@ -224,6 +259,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
           case nonTextInputs.indexOf(item) > -1:
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
+            // yield kodakPromise(driver, `${item}.png`);
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
           case nonTextInputs.indexOf(item) === -1 && !!value:
@@ -233,13 +269,20 @@ const prepareNewEntryPromise = (vehicle, session) => {
               const date = value.substring(8, 10) * 1;
               const monthStart = value.substring(0, 8) + '01';
               const dayOfMonthStart = (new Date(monthStart)).getDay();
-              yield driver.findElement(By.xpath('//*[@id="1031"]/span')).click(); // click on the datepicker button
-              yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[2]')).click(); // click on the year button
-              yield driver.findElement(By.xpath(`//*[@id="1073"]/div[${year - 1900}]`)).click(); // click on the specific year
-              yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[4]')).click(); // click on the month button
-              yield driver.findElement(By.xpath(`//*[@id="1074"]/div[${month}]`)).click(); // click on the specific month
-              yield driver.findElement(By.xpath(`/html/body/div[13]/div[2]/div[${7 + date + dayOfMonthStart}]`)).click(); // click on the specific date
-              yield driver.findElement(By.xpath('/html/body/div[13]/div[3]/div[1]')).click(); // click on the datepicker confirm button
+              yield driver.findElement(By.xpath(dateXPathHash.datepickerButton)).click(); // click on the datepicker button
+              yield driver.findElement(By.xpath(dateXPathHash.yearButton)).click(); // click on the year button
+              yield driver.findElement(By.xpath(dateXPathHash.year(year))).click(); // click on the specific year
+              yield driver.findElement(By.xpath(dateXPathHash.monthButton)).click(); // click on the month button
+              yield driver.findElement(By.xpath(dateXPathHash.month(month))).click(); // click on the specific month
+              yield driver.findElement(By.xpath(dateXPathHash.date(date, dayOfMonthStart))).click(); // click on the specific date
+              yield driver.findElement(By.xpath(dateXPathHash.confirmButton)).click(); // click on the datepicker confirm button
+              // yield driver.findElement(By.xpath('//*[@id="1031"]/span')).click(); // click on the datepicker button
+              // yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[2]')).click(); // click on the year button
+              // yield driver.findElement(By.xpath(`//*[@id="1073"]/div[${year - 1900}]`)).click(); // click on the specific year
+              // yield driver.findElement(By.xpath('/html/body/div[13]/div[1]/div[4]')).click(); // click on the month button
+              // yield driver.findElement(By.xpath(`//*[@id="1074"]/div[${month}]`)).click(); // click on the specific month
+              // yield driver.findElement(By.xpath(`/html/body/div[13]/div[2]/div[${7 + date + dayOfMonthStart}]`)).click(); // click on the specific date
+              // yield driver.findElement(By.xpath('/html/body/div[13]/div[3]/div[1]')).click(); // click on the datepicker confirm button
             } else {
               yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
             }
@@ -251,9 +294,10 @@ const prepareNewEntryPromise = (vehicle, session) => {
 
       });
       console.log(roomId, '[prepare new entry] after filling in:', calculateTimeElapsed());
-
+      const topElementXPath = topElementXPathHash[vehicle.mofcomRegisterType];
+      console.log(topElementXPath);
       yield driver.executeScript(`
-        var firstElement = document.evaluate('${xpathHash['owner.isPerson']}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        var firstElement = document.evaluate('${topElementXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         firstElement.scrollIntoView();
       `)
   

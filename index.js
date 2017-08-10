@@ -113,6 +113,28 @@ mofcomNSP.on('connection', function(socket){
           })  
 
         break;
+      case data.bot === 'mofcom' && data.action === 'submit':
+        mofcom.submitNewEntryPromiseFac(session)
+          .then(result => {
+              mofcomNSP.to(roomId).send({
+                by: 'submitNewEntryPromiseFac',
+                ok: true,
+                message: result.message,
+                data: result.data
+              });
+          })
+          .catch(error => {
+              console.log(error);
+              if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+                mofcomNSP.to(roomId).send({
+                  by: 'submitNewEntryPromiseFac',
+                  ok: false,
+                  message: error.message,
+                  data: error.data
+                });
+              }
+          })
+        break;
     }
     
     Rx.Observable.interval(6 * 1000)
