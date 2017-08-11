@@ -97,14 +97,22 @@ exports.newEntryPromiseFac = (vehicle, jwt, session) => {
 
 exports.submitNewEntryPromiseFac = (session) => {
   session.newActionRxx.next('anything');
+  let latestTimestamp = Date.now();
+  const calculateTimeElapsed = () => {
+    const now = Date.now();
+    const timeElapsed = now - latestTimestamp;
+    latestTimestamp = now;
+    return timeElapsed;
+  }
   return new Promise((resolve, reject) => {
     co(function*() {
       const vehicle = session.vehicleUnderCooking;
       const submitButtonXPath = confirmAndNextButtonElementXPathHash[vehicle.mofcomRegisterType];
-      console.log(vehicle);
+      // console.log(vehicle);
+      const driver = session.driver;
       // get and return the mofcomRegistryRef ...
       yield driver.findElement(By.xpath(submitButtonXPath)).click();
-
+      console.log('after click on firstStageSave:', calculateTimeElapsed())
       // 保存成功/是
       // /html/body/div[16]/div[3]/div[1]
       // 保存
@@ -116,25 +124,40 @@ exports.submitNewEntryPromiseFac = (session) => {
       // get inner text
       // "回收证明单编号:HS-210000-1045-20170811-1"
       // substring(8)
-      const firstStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
-      yield driver.wait(until.elementLocated(By.xpath(firstStageSavedYesXPath)));
-      yield driver.findElement(By.xpath(firstStageSavedYesXPath)).click();
-      const secondStageSaveButtonXPath = '//*[@id="1139"]/div/span/span';
-      yield driver.findElement(By.xpath(secondStageSaveButtonXPath)).click();
-      const secondStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
-      yield driver.wait(until.elementLocated(By.xpath(secondStageSavedYesXPath)));
-      yield driver.findElement(By.xpath(secondStageSavedYesXPath)).click();
-      const mofcomRefXPath = '//*[@id="1144"]/div/p[6]'
-      const mofcomRegisterRef = yield driver.executeScript(`
-        var mofcomRefElement = document.evaluate('${mofcomRefXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        return mofcomRefElement.innerText.substring(8);
-      `);
+
+
+      // const firstStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
+      // yield driver.wait(until.elementLocated(By.xpath(firstStageSavedYesXPath)));
+      // console.log('after firstStageSavedYesElement located:', calculateTimeElapsed())
+      //       yield kodakPromise(driver, 'png/04-01-firstStageSavedYesElementLocated.png')
+
+      // yield driver.findElement(By.xpath(firstStageSavedYesXPath)).click();
+      // console.log('after firstStageSavedYesElement clicked:', calculateTimeElapsed())
+      //       yield kodakPromise(driver, 'png/04-02-firstStageSavedYesElementClicked.png')
+      // const secondStageSaveButtonXPath = '//*[@id="1139"]/div/span/span';
+      // yield driver.findElement(By.xpath(secondStageSaveButtonXPath)).click();
+      // console.log('after secondStageSaveButton clicked:', calculateTimeElapsed())
+      //       yield kodakPromise(driver, 'png/04-03-secondStageSaveButtonClicked.png')
+      // const secondStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
+      // yield driver.wait(until.elementLocated(By.xpath(secondStageSavedYesXPath)));
+      // console.log('after secondStageSavedYesElement located:', calculateTimeElapsed())
+      //       yield kodakPromise(driver, 'png/04-04-secondStageSavedYesElementLocated.png')
+      // yield driver.findElement(By.xpath(secondStageSavedYesXPath)).click();
+      // console.log('after secondStageSavedYesElement clicked:', calculateTimeElapsed())
+      //       yield kodakPromise(driver, 'png/04-05-secondStageSavedYesElementClicked.png')
+      // const mofcomRefXPath = '//*[@id="1144"]/div/p[6]'
+      // const mofcomRegisterRef = yield driver.executeScript(`
+      //   var mofcomRefElement = document.evaluate('${mofcomRefXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+      //   return mofcomRefElement.innerText.substring(8);
+      // `);
+      // console.log('after getting mofcomRegisterRef:', calculateTimeElapsed());
+      // console.log('mofcomRegisterRef:', mofcomRegisterRef);
 
       session.vehicleUnderCooking = null;
       resolve({
         message: 'newEntrySubmitted',
         data: {
-          mofcomRegisterRef
+          mofcomRegisterRef: 'tbd'
         }
       });
 
