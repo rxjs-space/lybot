@@ -305,7 +305,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
           //   console.log('displacement in L:', value);
           //   yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
           //   break;
-          case nonTextInputs.indexOf(item) > -1:
+          case nonTextInputs.indexOf(item) > -1 && !!value:
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
             // yield kodakPromise(driver, `${item}.png`);
@@ -412,6 +412,8 @@ exports.doLoginPromiseFac = (captcha, session) => {
       yield driver.findElement(By.xpath('//*[@id="loginForm"]/div[6]/div[2]/p/input')).click();
       const currentUrlAfterSubmit = yield driver.getCurrentUrl();
       console.log(roomId, '[doLogin] after click submit and page loaded:', calculateTimeElapsed());
+      yield kodakPromise(driver, 'png/02-01.5-after-click-submit.png');
+      console.log(roomId, '[doLogin] after 02-01.5 png:', calculateTimeElapsed());
       console.log('currentUrlAfterSubmit', currentUrlAfterSubmit);
       if (currentUrlAfterSubmit.indexOf('loginForm.html') > -1) {
         console.log('invalid captcha')

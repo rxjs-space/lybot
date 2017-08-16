@@ -28,8 +28,8 @@ app.use('/mofcom', mofcom.router);
 // });
 
 
-const mofcomNSP = io.of('/mofcom');
-mofcomNSP.on('connection', function(socket){
+const mofcomNS = io.of('/mofcom');
+mofcomNS.on('connection', function(socket){
   const roomId = socket.client.id; // the defaultRoom's id is set by socket.io
   socket.join(roomId);
   socket.on('message', (data) => {
@@ -49,7 +49,7 @@ mofcomNSP.on('connection', function(socket){
         mofcom.newEntryPromiseFac(vehicle, jwt, session)
           .then(result => {
             console.log(result);
-            mofcomNSP.to(roomId).send({
+            mofcomNS.to(roomId).send({
               by: 'newEntryPromiseFac',
               ok: true,
               message: result.message,
@@ -66,7 +66,7 @@ mofcomNSP.on('connection', function(socket){
               //   message: error.message,
               //   data: error.data // error.data = {captchaBase64}
               // });
-              mofcomNSP.to(roomId).send({
+              mofcomNS.to(roomId).send({
                 by: 'newEntryPromiseFac',
                 ok: false,
                 message: error.message,
@@ -80,7 +80,7 @@ mofcomNSP.on('connection', function(socket){
         mofcom.doLoginPromiseFac(captcha, session)
           .then(result => {
             console.log(result);
-            mofcomNSP.to(roomId).send({
+            mofcomNS.to(roomId).send({
               by: 'doLoginPromiseFac',
               ok: true,
               message: result.message,
@@ -93,7 +93,7 @@ mofcomNSP.on('connection', function(socket){
         mofcom.newEntryAgainPromiseFac(session)
           .then(result => {
             console.log(result);
-            mofcomNSP.to(roomId).send({
+            mofcomNS.to(roomId).send({
               by: 'newEntryAgainPromiseFac',
               ok: true,
               message: result.message,
@@ -103,7 +103,7 @@ mofcomNSP.on('connection', function(socket){
           .catch(error => {
             console.log(error);
             if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-              mofcomNSP.to(roomId).send({
+              mofcomNS.to(roomId).send({
                 by: 'newEntryPromiseFac',
                 ok: false,
                 message: error.message,
@@ -116,7 +116,7 @@ mofcomNSP.on('connection', function(socket){
       case data.bot === 'mofcom' && data.action === 'submit':
         mofcom.submitNewEntryPromiseFac(session)
           .then(result => {
-              mofcomNSP.to(roomId).send({
+              mofcomNS.to(roomId).send({
                 by: 'submitNewEntryPromiseFac',
                 ok: true,
                 message: result.message,
@@ -126,7 +126,7 @@ mofcomNSP.on('connection', function(socket){
           .catch(error => {
               console.log(error);
               if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-                mofcomNSP.to(roomId).send({
+                mofcomNS.to(roomId).send({
                   by: 'submitNewEntryPromiseFac',
                   ok: false,
                   message: error.message,
@@ -140,7 +140,7 @@ mofcomNSP.on('connection', function(socket){
     Rx.Observable.interval(6 * 1000)
       .take(50)
       .takeUntil(mofcom.finishedMofcomOpsRxx)
-      .subscribe(x => mofcomNSP.to(roomId).emit('mofcomProgressing', x));
+      .subscribe(x => mofcomNS.to(roomId).emit('mofcomProgressing', x));
 
     // mofcom.mofcomNewEntryRxFac(vehicle, jwt, session)
     //   .subscribe(result => {
@@ -168,12 +168,12 @@ mofcomNSP.on('connection', function(socket){
     // user Observable.interval to keep avoid the socket being killed by heroku
     Rx.Observable.interval(20 * 1000)
       .takeUntil(mofcom.loginRxx)
-      .subscribe(x => mofcomNSP.to(roomId).emit('progressing', x));
+      .subscribe(x => mofcomNS.to(roomId).emit('progressing', x));
     mofcom.loginRx(captcha, jwt)
       .take(1)
       .subscribe(
-        result => mofcomNSP.to(roomId).send(result), // .send method will emit 'message' event
-        error => mofcomNSP.to(roomId).emit('lyError', error)
+        result => mofcomNS.to(roomId).send(result), // .send method will emit 'message' event
+        error => mofcomNS.to(roomId).emit('lyError', error)
       );
   })
 });
