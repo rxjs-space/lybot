@@ -349,7 +349,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
         var firstElement = document.evaluate('${topElementXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         firstElement.scrollIntoView();
       `)
-  
+      yield driver.findElement(By.xpath(topElementXPath)).click(); // click randomly for form-auto-formatting to apply
       yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
       console.log(roomId, '[prepare new entry] after taking 03-02:', calculateTimeElapsed());
 
