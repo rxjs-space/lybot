@@ -135,10 +135,13 @@ exports.submitNewEntryPromiseFac = (session) => {
         `);
 
         session.vehicleUnderCooking = null;
+        const errorMessageToClient = vehicle.vinSuffix ?
+          `${errorMsg}\n提交的车架号为：【${vehicle.vin}】。提交的车架号后缀为：【${vehicle.vinSuffix}】` :
+          `${errorMsg}\n提交的车架号为：【${vehicle.vin}】。`
         resolve({
           message: 'newEntryFailed',
           data: {
-            errorMessage: errorMsg
+            errorMessage: errorMessageToClient
           }
         });
 
@@ -311,7 +314,8 @@ const prepareNewEntryPromise = (vehicle, session) => {
             }
             break;
           case 'vinConfirm':
-            value = vehicle['vin'];
+          case 'vin':
+            value = vehicle['vin'] + vehicle['vinSuffix'];
             break;
           default:
             paths = item.split('.');

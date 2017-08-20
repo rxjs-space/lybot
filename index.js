@@ -125,7 +125,7 @@ mofcomNS.on('connection', function(socket){
           })
           .catch(error => {
               console.log(error);
-              if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+              if (typeof error.message === 'string') {
                 mofcomNS.to(roomId).send({
                   by: 'submitNewEntryPromiseFac',
                   ok: false,
