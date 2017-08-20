@@ -2,6 +2,12 @@ exports.mofcomLoginUrl = 'http://ecomp.mofcom.gov.cn/loginCorp.html';
 
 exports.loginCheckSuccessInterval = 60 * 1000;
 
+exports.errorMessageXPathHash = {
+  '1': {
+    'duplicateVIN': '/html/body/div[17]/div[2]/div[2]'
+  }
+}
+
 exports.vehicleTypeXPathHash = {
   '1': '//*[@id="1008"]/div[10]/div[1]/span', // 新建车辆
   '2': '//*[@id="1008"]/div[10]/div[2]/span', // 新建异地报废车辆

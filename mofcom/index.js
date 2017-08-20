@@ -20,6 +20,7 @@ const commonElementXPathHashes = require('./constants').commonElementXPathHashes
 const loginCheckSuccessInterval = require('./constants').loginCheckSuccessInterval;
 const confirmAndNextButtonElementXPathHash = require('./constants').confirmAndNextButtonElementXPathHash;
 const topElementXPathHash = require('./constants').topElementXPathHash;
+const errorMessageXPathHash = require('./constants').errorMessageXPathHash;
 
 const drivers = {};
 const formUrls = {};
@@ -29,6 +30,15 @@ const url = require('./constants').mofcomLoginUrl;
 const mofcomSessions = {};
 
 const finishedMofcomOpsRxx = new Rx.Subject();
+const elementExistsPromise = (driver, xpath, timeout) => {
+  return new Promise((resolve, reject) => {
+    driver.wait(until.elementLocated(By.xpath(xpath)), timeout)
+      .then(() => resolve(true))
+      .catch(() => resolve(false))
+    });
+}
+
+
 exports.finishedMofcomOpsRxx = finishedMofcomOpsRxx;
 
 exports.mofcomSessions = mofcomSessions;
@@ -112,7 +122,58 @@ exports.submitNewEntryPromiseFac = (session) => {
       const driver = session.driver;
       // get and return the mofcomRegistryRef ...
       yield driver.findElement(By.xpath(submitButtonXPath)).click();
-      console.log('after click on firstStageSave:', calculateTimeElapsed())
+      console.log('after click on firstStageSave:', calculateTimeElapsed());
+      const errorMsgXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVIN'];
+      const hasError = yield elementExistsPromise(driver, errorMsgXPath, 100);
+      yield kodakPromise(driver, 'png/04-00-after-click-submit.png')
+      // console.log(hasError);
+      if (hasError) {
+
+        const errorMsg = yield driver.executeScript(`
+          var errorMsgElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          return errorMsgElement.innerText;
+        `);
+
+        session.vehicleUnderCooking = null;
+        resolve({
+          message: 'newEntryFailed',
+          data: {
+            errorMessage: errorMsg
+          }
+        });
+
+      // const formElem = driver.findElement(By.xpath('//*[@id="1017"]/div'));
+      // const size = yield formElem.getSize();
+      // const location = yield formElem.getLocation();
+      // console.log(roomId, '[prepare new entry] after getting size and localtion of formElem:', calculateTimeElapsed());
+      // const screenshotBase64 = yield driver.takeScreenshot();
+      // console.log(roomId, '[prepare new entry] after taking screenshot:', calculateTimeElapsed());
+      // const buf = Buffer.from(screenshotBase64, 'base64');
+      // const screenshotJimp = yield Jimp.read(buf);
+      // const resultBase64 = yield cropPromise(screenshotJimp, location.x, location.y, size.width, size.height);
+      // console.log(roomId, '[prepare new entry] after cropping the screenshot:', calculateTimeElapsed());
+
+      // // const resultBase64 = yield driver.takeScreenshot()
+      // finishedMofcomOpsRxx.next('finishedInput');
+      // resolve({
+      //   message: 'finishedInput',
+      //   data: {resultBase64}
+      // })
+
+      } else {
+
+        session.vehicleUnderCooking = null;
+        resolve({
+          message: 'newEntrySubmitted',
+          data: {
+            mofcomRegisterRef: 'tbd'
+          }
+        });
+
+      }
+
+
+
       // 保存成功/是
       // /html/body/div[16]/div[3]/div[1]
       // 保存
@@ -129,7 +190,7 @@ exports.submitNewEntryPromiseFac = (session) => {
       // const firstStageSavedYesXPath = '/html/body/div[16]/div[3]/div[1]';
       // yield driver.wait(until.elementLocated(By.xpath(firstStageSavedYesXPath)));
       // console.log('after firstStageSavedYesElement located:', calculateTimeElapsed())
-      //       yield kodakPromise(driver, 'png/04-01-firstStageSavedYesElementLocated.png')
+      // yield kodakPromise(driver, 'png/04-01-firstStageSavedYesElementLocated.png')
 
       // yield driver.findElement(By.xpath(firstStageSavedYesXPath)).click();
       // console.log('after firstStageSavedYesElement clicked:', calculateTimeElapsed())
@@ -153,13 +214,7 @@ exports.submitNewEntryPromiseFac = (session) => {
       // console.log('after getting mofcomRegisterRef:', calculateTimeElapsed());
       // console.log('mofcomRegisterRef:', mofcomRegisterRef);
 
-      session.vehicleUnderCooking = null;
-      resolve({
-        message: 'newEntrySubmitted',
-        data: {
-          mofcomRegisterRef: 'tbd'
-        }
-      });
+
 
     }).catch(error => {
       reject({
