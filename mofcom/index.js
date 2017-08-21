@@ -78,7 +78,7 @@ exports.mofcomNewSession = (roomId) => {
     .timer(canBedleForXMins * 60 * 1000)
     .map(() => {
       if (mofcomSessions[roomId] && mofcomSessions[roomId].driver) {
-        console.log(`${new Date()}: session for ${roomId} is now cleared after ${canBedleForXMins} mins idling at ${new Date()}.`)
+        console.log(`${new Date()}: session for ${roomId} is now cleared after ${canBedleForXMins} mins idling.`)
         mofcomSessions[roomId].driver.quit();
         delete mofcomSessions[roomId];
       } else {
@@ -305,11 +305,12 @@ const prepareNewEntryPromise = (vehicle, session) => {
       console.log(roomId, '[prepare new entry] after taking 03-01.5:', calculateTimeElapsed());
       const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
       const dateXPathHash = Object.assign({}, dateElementXPathHash[vehicle.mofcomRegisterType]);
-      if (vehicle.owner.isPerson) {
+      if (vehicle.owner.isPerson !== '否') {
         delete xpathHash['agent.name'];
         delete xpathHash['agent.idNo'];
       }
       const items = Object.keys(xpathHash);
+      // console.log(items);
       const nonTextInputs = nonTextInputsHash[vehicle.mofcomRegisterType];
 
       yield coForEach(items, function*(item) {
