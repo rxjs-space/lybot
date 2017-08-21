@@ -156,7 +156,15 @@ mofcomNS.on('connection', function(socket){
   socket.on('disconnect', () => {
     const roomId = socket.client.id;
     // do some unsubscriptions
-    mofcom.mofcomSessions[roomId] = null;
+    const session = mofcom.mofcomSessions[roomId];
+
+    if (session.driver) {
+      console.log(`session for ${roomId} is now cleared after client disconnected.`)
+      session.driver.quit();
+      delete mofcom.mofcomSessions[roomId];
+    }
+
+
   })
 
 
