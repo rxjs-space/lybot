@@ -77,10 +77,12 @@ exports.mofcomNewSession = (roomId) => {
   const timerRx = Rx.Observable
     .timer(canBedleForXMins * 60 * 1000)
     .map(() => {
-      if (session.driver) {
-        console.log(`session for ${roomId} is now cleared after ${canBedleForXMins} mins idling at ${new Date()}.`)
-        session.driver.quit();
+      if (mofcomSessions[roomId] && mofcomSessions[roomId].driver) {
+        console.log(`${new Date()}: session for ${roomId} is now cleared after ${canBedleForXMins} mins idling at ${new Date()}.`)
+        mofcomSessions[roomId].driver.quit();
         delete mofcomSessions[roomId];
+      } else {
+        console.log(`${new Date()}: session for ${roomId} was cleared somewhere else.`)
       }
     });
   session.newActionRxx
