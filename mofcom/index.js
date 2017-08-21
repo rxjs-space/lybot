@@ -37,6 +37,22 @@ const elementExistsPromise = (driver, xpath, timeout) => {
       .catch(() => resolve(false))
     });
 }
+const errorMessageElementDisplayedPromise = (driver, errorMsgXPath, timeout) => {
+  return new Promise((resolve, reject) => {
+
+    driver.executeScript(`
+      var errorMsgElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+      return errorMsgElement.style.display;
+    `).then(result => {
+      if (result === 'none') {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    })
+
+  });
+}
 
 
 exports.finishedMofcomOpsRxx = finishedMofcomOpsRxx;
@@ -124,7 +140,8 @@ exports.submitNewEntryPromiseFac = (session) => {
       yield driver.findElement(By.xpath(submitButtonXPath)).click();
       console.log('after click on firstStageSave:', calculateTimeElapsed());
       const errorMsgXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVIN'];
-      const hasError = yield elementExistsPromise(driver, errorMsgXPath, 100);
+      const maskXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['mask'];
+      const hasError = yield errorMessageElementDisplayedPromise(driver, errorMsgXPath, 500);
       yield kodakPromise(driver, 'png/04-00-after-click-submit.png')
       // console.log(hasError);
       if (hasError) {
