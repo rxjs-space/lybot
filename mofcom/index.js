@@ -61,10 +61,10 @@ const errorMessageElementDisplayedPromise = (driver, errorMsgXPathContainer, err
       driver.executeScript(`
         var errorMsgContainerElement = document.evaluate('${errorMsgXPathContainer}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         var errorMsgElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        return {displayed: !errorMsgContainerElement.hidden, innerText: errorMsgElement.innerText};
+        return {display: window.getComputedStyle(errorMsgContainerElement).display, innerText: errorMsgElement.innerText};
       `).then(result => {
         console.log('isErrorMsgElementDisplayed?', result);
-        if (result && result.displayed) {
+        if (result && result.display === 'block') {
           resolve(true);
         } else {
           resolve(false);
