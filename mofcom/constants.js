@@ -5,7 +5,8 @@ exports.loginCheckSuccessInterval = 60 * 1000;
 exports.errorMessageXPathHash = {
   '1': {
     'mask': '/html/body/div[22]',
-    'duplicateVIN': '/html/body/div[17]/div[2]/div[2]'
+    'duplicateVIN': '/html/body/div[17]/div[2]/div[2]',
+    'duplicateVINContainer': '/html/body/div[17]',
   }
 }
 

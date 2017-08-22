@@ -37,19 +37,46 @@ const elementExistsPromise = (driver, xpath, timeout) => {
       .catch(() => resolve(false))
     });
 }
-const errorMessageElementDisplayedPromise = (driver, errorMsgXPath, timeout) => {
-  return new Promise((resolve, reject) => {
 
+const elementIsDisplayedPromise = (driver, xpath) => {
+  return new Promise((resolve, reject) => {
     driver.executeScript(`
-      var errorMsgElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-      return errorMsgElement.style.display;
+      var thatElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+      return {displayed: !thatElement.hidden, innerText: thatElement.innerText}
     `).then(result => {
-      if (result === 'none') {
+      console.log('isThatElementDisplayed?', result);
+      if (result && result.displayed === 'none') {
         resolve(false);
       } else {
         resolve(true);
       }
     })
+
+  })
+}
+
+const errorMessageElementDisplayedPromise = (driver, errorMsgXPathContainer, errorMsgXPath, timeout) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      driver.executeScript(`
+        var errorMsgContainerElement = document.evaluate('${errorMsgXPathContainer}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        var errorMsgElement = document.evaluate('${errorMsgXPath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        return {displayed: !errorMsgContainerElement.hidden, innerText: errorMsgElement.innerText};
+      `).then(result => {
+        console.log('isErrorMsgElementDisplayed?', result);
+        if (result && result.displayed) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      })
+      .catch(error => {
+        console.log('isErrorMsgElementDisplayed? Caught error:', error);
+        resolve(false);
+      })
+
+    }, timeout)
+
 
   });
 }
@@ -140,11 +167,16 @@ exports.submitNewEntryPromiseFac = (session) => {
       const driver = session.driver;
       // get and return the mofcomRegistryRef ...
       yield driver.findElement(By.xpath(submitButtonXPath)).click();
-      console.log('after click on firstStageSave:', calculateTimeElapsed());
+      console.log('[submitting new entry] after clicking on firstStageSave:', calculateTimeElapsed());
+      yield kodakPromise(driver, 'png/04-00-after-click-submit.png');
+      // const screenshotAfterSubmitBase64 = yield driver.takeScreenshot();
+      // console.log(roomId, '[submitting new entry] after taking screenshot:', calculateTimeElapsed());
+      
       const errorMsgXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVIN'];
+      const errorMsgXPathContainer = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVINContainer'];
       const maskXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['mask'];
-      const hasError = yield errorMessageElementDisplayedPromise(driver, errorMsgXPath, 500);
-      yield kodakPromise(driver, 'png/04-00-after-click-submit.png')
+
+      const hasError = yield errorMessageElementDisplayedPromise(driver, errorMsgXPathContainer, errorMsgXPath, 500);
       // console.log(hasError);
       if (hasError) {
 
