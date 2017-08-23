@@ -64,7 +64,7 @@ const errorMessageElementDisplayedPromise = (driver, errorMsgXPathContainer, err
         return {display: window.getComputedStyle(errorMsgContainerElement).display, innerText: errorMsgElement.innerText};
       `).then(result => {
         console.log('isErrorMsgElementDisplayed?', result);
-        if (result && result.display === 'block') {
+        if (result && result.display === 'block' && (result.innerText.indexOf('请重新检查填写') > -1)) {
           resolve(true);
         } else {
           resolve(false);
