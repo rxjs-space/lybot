@@ -294,6 +294,20 @@ exports.newEntryAgainPromiseFac = (session) => {
   })
 }
 
+const promiseWithLog = (thatPromise, logContent) => {
+  return new Promise((resolve, reject) => {
+    thatPromise
+      .then(result => {
+        console.log('success: ' + logContent);
+        resolve(result);
+      })
+      .catch(error => {
+        console.log('error: ' + logContent);
+        reject(error);
+      })
+  })
+}
+
 const prepareNewEntryPromise = (vehicle, session) => {
   const optionHashes = nonTextInputOptionXPathHashes[vehicle.mofcomRegisterType];
   session.newActionRxx.next('anything');
@@ -420,7 +434,11 @@ const prepareNewEntryPromise = (vehicle, session) => {
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
             // yield kodakPromise(driver, `${item}.png`);
-            yield driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])));
+            // yield driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])));
+            yield promiseWithLog(
+              driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
+              item + ' ' + value
+            )
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
           case nonTextInputs.indexOf(item) === -1 && !!value:
