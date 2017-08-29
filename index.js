@@ -186,6 +186,11 @@ mofcomNS.on('connection', function(socket){
       );
   })
 });
-server.listen(port, function() {  
-  console.log('listening on port', port);
-});
+
+if (process.env.MOFCOM_USERNAME && process.env.MOFCOM_PASSWORD) {
+  server.listen(port, function() {  
+    console.log('listening on port', port);
+  });  
+} else {
+  throw new Error('mofcom account info missing');
+}
