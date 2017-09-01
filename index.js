@@ -61,7 +61,7 @@ mofcomNS.on('connection', function(socket){
             mofcomNS.to(roomId).send({
               by: 'newEntryPromiseFac',
               ok: false,
-              message: JSON.stringify(error.message),
+              message: typeof error.message === 'string' ? error.message : JSON.stringify(error.message),
               data: error.data // error.data = {captchaBase64}
             });
             // if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
@@ -111,7 +111,7 @@ mofcomNS.on('connection', function(socket){
             mofcomNS.to(roomId).send({
               by: 'newEntryAgainPromiseFac',
               ok: false,
-              message: JSON.stringify(error.message),
+              message: typeof error.message === 'string' ? error.message : JSON.stringify(error.message),
               data: error.data // error.data = {captchaBase64}
             });
 
