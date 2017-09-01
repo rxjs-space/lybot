@@ -174,7 +174,7 @@ exports.submitNewEntryPromiseFac = (session) => {
       
       const errorMsgXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVIN'];
       const errorMsgXPathContainer = errorMessageXPathHash[vehicle.mofcomRegisterType]['duplicateVINContainer'];
-      const maskXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['mask'];
+      const maskXPath = errorMessageXPathHash[vehicle.mofcomRegisterType]['mask']; // useless line
 
       const hasError = yield errorMessageElementDisplayedPromise(driver, errorMsgXPathContainer, errorMsgXPath, 500);
       // console.log(hasError);
@@ -437,7 +437,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
             // yield driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])));
             yield promiseWithLog(
               driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
-              item + ' ' + value
+              item + ' ' + value + ' ' + optionHashes[item][value]
             )
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;

@@ -7,6 +7,10 @@ exports.errorMessageXPathHash = {
     'mask': '/html/body/div[22]',
     'duplicateVIN': '/html/body/div[17]/div[2]/div[2]',
     'duplicateVINContainer': '/html/body/div[17]',
+  },
+  '4': {
+    'duplicateVIN': '/html/body/div[13]/div[2]/div[2]',
+    'duplicateVINContainer': '/html/body/div[13]'
   }
 }
 
