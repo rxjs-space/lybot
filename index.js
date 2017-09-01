@@ -58,21 +58,27 @@ mofcomNS.on('connection', function(socket){
           })
           .catch(error => {
             console.log(error);
-            if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-              console.log('prepared to send captcha');
-              // socket.emit('message', {
-              //   by: 'newEntryPromiseFac',
-              //   ok: false,
-              //   message: error.message,
-              //   data: error.data // error.data = {captchaBase64}
-              // });
-              mofcomNS.to(roomId).send({
-                by: 'newEntryPromiseFac',
-                ok: false,
-                message: error.message,
-                data: error.data // error.data = {captchaBase64}
-              });
-            }
+            mofcomNS.to(roomId).send({
+              by: 'newEntryPromiseFac',
+              ok: false,
+              message: error.message,
+              data: error.data // error.data = {captchaBase64}
+            });
+            // if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+            //   console.log('prepared to send captcha');
+            //   // socket.emit('message', {
+            //   //   by: 'newEntryPromiseFac',
+            //   //   ok: false,
+            //   //   message: error.message,
+            //   //   data: error.data // error.data = {captchaBase64}
+            //   // });
+            //   mofcomNS.to(roomId).send({
+            //     by: 'newEntryPromiseFac',
+            //     ok: false,
+            //     message: error.message,
+            //     data: error.data // error.data = {captchaBase64}
+            //   });
+            // }
           })
         break;
       case data.bot === 'mofcom' && data.action === 'login':
@@ -102,14 +108,21 @@ mofcomNS.on('connection', function(socket){
           })
           .catch(error => {
             console.log(error);
-            if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
-              mofcomNS.to(roomId).send({
-                by: 'newEntryPromiseFac',
-                ok: false,
-                message: error.message,
-                data: error.data // error.data = {captchaBase64}
-              });
-            }
+            mofcomNS.to(roomId).send({
+              by: 'newEntryPromiseFac',
+              ok: false,
+              message: error.message,
+              data: error.data // error.data = {captchaBase64}
+            });
+
+            // if (typeof error.message === 'string' && error.message.indexOf('notLoggedIn') > -1) {
+            //   mofcomNS.to(roomId).send({
+            //     by: 'newEntryPromiseFac',
+            //     ok: false,
+            //     message: error.message,
+            //     data: error.data // error.data = {captchaBase64}
+            //   });
+            // }
           })  
 
         break;
