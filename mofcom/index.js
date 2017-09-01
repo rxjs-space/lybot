@@ -310,6 +310,8 @@ const promiseWithLog = (thatPromise, logContent) => {
 
 const prepareNewEntryPromise = (vehicle, session) => {
   const optionHashes = nonTextInputOptionXPathHashes[vehicle.mofcomRegisterType];
+  console.log('mType', vehicle.mofcomRegisterType);
+  console.log(optionHashes);
   session.newActionRxx.next('anything');
   const roomId = session.roomId;
   let latestTimestamp = Date.now();
@@ -437,7 +439,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
             // yield driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])));
             yield promiseWithLog(
               driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
-              item + ' ' + value + ' ' + optionHashes[item][value]
+              item + ' ' + value + ' ' + '' + optionHashes[item] + '' + optionHashes[item][value]
             )
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
