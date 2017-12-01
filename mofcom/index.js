@@ -21,6 +21,7 @@ const loginCheckSuccessInterval = require('./constants').loginCheckSuccessInterv
 const confirmAndNextButtonElementXPathHash = require('./constants').confirmAndNextButtonElementXPathHash;
 const topElementXPathHash = require('./constants').topElementXPathHash;
 const errorMessageXPathHash = require('./constants').errorMessageXPathHash;
+const formElementXPathHash = require('./constants').formElementXPathHash;
 
 const drivers = {};
 const formUrls = {};
@@ -483,7 +484,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
       yield kodakPromise(driver, 'png/03-02-after-typing-in.png');
       console.log(roomId, '[prepare new entry] after taking 03-02:', calculateTimeElapsed());
 
-      const formElem = driver.findElement(By.xpath('//*[@id="1017"]/div'));
+      const formElem = driver.findElement(By.xpath(formElementXPathHash[vehicle.mofcomRegisterType]));
       const size = yield formElem.getSize();
       const location = yield formElem.getLocation();
       console.log(roomId, '[prepare new entry] after getting size and localtion of formElem:', calculateTimeElapsed());
