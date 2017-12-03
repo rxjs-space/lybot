@@ -8,13 +8,13 @@ exports.loginCheckSuccessInterval = 60 * 1000;
 // todo: not updated
 exports.errorMessageXPathHash = {
   '1': {
-    'mask': '/html/body/div[14]',
-    'duplicateVIN': '/html/body/div[15]/div[2]/div[2]',
-    'duplicateVINContainer': '/html/body/div[15]',
+    'mask': '//*[@class="mask"]',
+    'duplicateVIN': '//*[@class="main msg-content"]',
+    'duplicateVINContainer': '//*[@class="main msg"]',
   },
   '4': {
     'duplicateVIN': '/html/body/div[13]/div[2]/div[2]',
-    'duplicateVINContainer': '/html/body/div[13]'
+    'duplicateVINContainer': '//*[@class="main msg"]'
   }
 }
 
