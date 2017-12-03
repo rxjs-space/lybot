@@ -13,7 +13,7 @@ exports.errorMessageXPathHash = {
     'duplicateVINContainer': '//*[@class="main msg"]',
   },
   '4': {
-    'duplicateVIN': '/html/body/div[13]/div[2]/div[2]',
+    'duplicateVIN': '//*[@class="main msg-content"]',
     'duplicateVINContainer': '//*[@class="main msg"]'
   }
 }
