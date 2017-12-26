@@ -87,6 +87,7 @@ exports.finishedMofcomOpsRxx = finishedMofcomOpsRxx;
 
 exports.mofcomSessions = mofcomSessions;
 exports.mofcomNewSession = (roomId) => {
+  // https://stackoverflow.com/questions/39638830/how-do-i-get-selenium-webdriver-to-ignore-ssl-errors-in-firefox-and-phantomjs/39766664#39766664
   const capabilities = webdriver.Capabilities.phantomjs();
   capabilities.set(webdriver.Capability.ACCEPT_SSL_CERTS, true);
   capabilities.set(webdriver.Capability.SECURE_SSL, false);
