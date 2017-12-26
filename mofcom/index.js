@@ -87,11 +87,26 @@ exports.finishedMofcomOpsRxx = finishedMofcomOpsRxx;
 
 exports.mofcomSessions = mofcomSessions;
 exports.mofcomNewSession = (roomId) => {
+  const capabilities = webdriver.Capabilities.phantomjs();
+  capabilities.set(webdriver.Capability.ACCEPT_SSL_CERTS, true);
+  capabilities.set(webdriver.Capability.SECURE_SSL, false);
+  capabilities.set("phantomjs.cli.args",
+                   ["--web-security=no",
+                    "--ssl-protocol=any", 
+                    "--ignore-ssl-errors=yes"]
+                  );
+  const driver = new webdriver
+    .Builder()
+    .withCapabilities(capabilities)
+    .build();
+
+
   let session = {
     roomId,
-    driver: new webdriver.Builder()
-      .forBrowser('phantomjs')
-      .build(),
+    driver,
+    // driver: new webdriver.Builder()
+    //   .forBrowser('phantomjs')
+    //   .build(),
     formUrl: '',
     newActionRxx: new Rx.Subject(), // each newAction will trigger a new timer to clear session
     mofcomResultRxx: new Rx.Subject(),
