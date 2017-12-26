@@ -48,7 +48,7 @@ mofcomNS.on('connection', function(socket){
         console.log(vehicle.vin);
         mofcom.newEntryPromiseFac(vehicle, jwt, session)
           .then(result => {
-            console.log(result);
+            // console.log(result);
             mofcomNS.to(roomId).send({
               by: 'newEntryPromiseFac',
               ok: true,
@@ -85,7 +85,7 @@ mofcomNS.on('connection', function(socket){
         const captcha = data.data.captcha;
         mofcom.doLoginPromiseFac(captcha, session)
           .then(result => {
-            console.log(result);
+            // console.log(result);
             mofcomNS.to(roomId).send({
               by: 'doLoginPromiseFac',
               ok: true,
@@ -98,7 +98,7 @@ mofcomNS.on('connection', function(socket){
       case data.bot === 'mofcom' && data.action === 'newEntryAgain':
         mofcom.newEntryAgainPromiseFac(session)
           .then(result => {
-            console.log(result);
+            // console.log(result);
             mofcomNS.to(roomId).send({
               by: 'newEntryAgainPromiseFac',
               ok: true,
