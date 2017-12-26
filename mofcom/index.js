@@ -609,7 +609,9 @@ const getCaptchaPromiseFac = (session) => {
 
     co(function*() {
       yield driver.get(url);
-      console.log(roomId, '[get captcha] after opeing login url:', calculateTimeElapsed());
+      console.log(roomId, '[get captcha] after opening login url:', calculateTimeElapsed());
+      const pageTitle = yield driver.getTitle();
+      console.log(pageTitle);
       yield driver.wait(
         until.titleContains('商务部业务系统统一平台')
       , 30 * 1000);
