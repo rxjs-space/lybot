@@ -453,10 +453,10 @@ const prepareNewEntryPromise = (vehicle, session) => {
             yield driver.findElement(By.xpath(xpathHash[item])).click();
             // yield kodakPromise(driver, `${item}.png`);
             // yield driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])));
-            yield promiseWithLog(
-              driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
-              item + ' ' + value + ' ' + '' + optionHashes[item] + '' + optionHashes[item][value]
-            )
+            // yield promiseWithLog(
+            //   driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
+            //   'located ' + item + ' ' + value + ' ' + optionHashes[item][value]
+            // );
             yield driver.findElement(By.xpath(optionHashes[item][value])).click();
             break;
           case nonTextInputs.indexOf(item) === -1 && !!value:
