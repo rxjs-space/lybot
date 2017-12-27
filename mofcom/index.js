@@ -627,11 +627,11 @@ const getCaptchaPromiseFac = (session) => {
     co(function*() {
       yield driver.get(url);
       console.log(roomId, '[get captcha] after opening login url:', calculateTimeElapsed());
-      const pageTitle = yield driver.executeScript(`
-        var title = document.title;
-        return title
-      `);
-      console.log('pageTitle is', pageTitle);
+      // const pageTitle = yield driver.executeScript(`
+      //   var title = document.title;
+      //   return title
+      // `);
+      // console.log('pageTitle is', pageTitle);
       yield driver.wait(
         until.titleContains('商务部业务系统统一平台')
       , 30 * 1000);
