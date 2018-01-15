@@ -367,14 +367,13 @@ const prepareNewEntryPromise = (vehicle, session) => {
 
       yield kodakPromise(driver, 'png/03-01.5-still-before-typing-in.png');
       console.log(roomId, '[prepare new entry] after taking 03-01.5:', calculateTimeElapsed());
-      const xpathHash = Object.assign({}, vehicleDetailsXPathHash[vehicle.mofcomRegisterType]);
-      const dateXPathHash = Object.assign({}, dateElementXPathHash[vehicle.mofcomRegisterType]);
+      const xpathHash = Object.assign({}, vehicleDetailsXPathHash);
+      const dateXPathHash = Object.assign({}, dateElementXPathHash);
       if (vehicle.owner.isPerson !== '否') {
         delete xpathHash['agent.name'];
         delete xpathHash['agent.idNo'];
       }
       const items = Object.keys(xpathHash);
-      // console.log(items);
       const nonTextInputs = nonTextInputsHash[vehicle.mofcomRegisterType];
 
       yield coForEach(items, function*(item) {
@@ -448,6 +447,8 @@ const prepareNewEntryPromise = (vehicle, session) => {
           //   console.log('displacement in L:', value);
           //   yield driver.findElement(By.xpath(xpathHash[item])).sendKeys(value);
           //   break;
+          case item === 'vehicle.isNEV' && vehicle.mofcomRegisterType === '4':
+            break;
           case nonTextInputs.indexOf(item) > -1 && !!value:
             console.log(item);
             yield driver.findElement(By.xpath(xpathHash[item])).click();
@@ -457,7 +458,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
             //   driver.wait(until.elementLocated(By.xpath(optionHashes[item][value])), 5000),
             //   'located ' + item + ' ' + value + ' ' + optionHashes[item][value]
             // );
-            yield driver.findElement(By.xpath(optionHashes[item][value])).click();
+            yield driver.findElement(By.xpath(optionHashes[item](value))).click();
             break;
           case nonTextInputs.indexOf(item) === -1 && !!value:
             if (item === 'vehicle.registrationDate') {
