@@ -12,6 +12,16 @@ exports.errorMessageXPathHash = {
     'duplicateVIN': '//*[@class="main msg-content"]',
     'duplicateVINContainer': '//*[@class="main msg"]',
   },
+  '2': {
+    'mask': '//*[@class="mask"]',
+    'duplicateVIN': '//*[@class="main msg-content"]',
+    'duplicateVINContainer': '//*[@class="main msg"]',
+  },
+  '3': {
+    'mask': '//*[@class="mask"]',
+    'duplicateVIN': '//*[@class="main msg-content"]',
+    'duplicateVINContainer': '//*[@class="main msg"]',
+  },
   '4': {
     'duplicateVIN': '//*[@class="main msg-content"]',
     'duplicateVINContainer': '//*[@class="main msg"]'
