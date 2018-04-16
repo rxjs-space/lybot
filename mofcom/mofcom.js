@@ -10,7 +10,9 @@ const driver = new webdriver.Builder()
     .build();
 
 // driver.get('http://www.bing.com').then(() => console.log('page opened'));
-const url = 'http://ecomp.mofcom.gov.cn/pages/login/QuicklyLogin.html?sp=Ssysc&sp=SNM0079';
+// https://ecomp.mofcom.gov.cn/loginCorp.html
+const url = 'https://ecomp.mofcom.gov.cn/loginCorp.html';
+// const url = 'http://ecomp.mofcom.gov.cn/pages/login/QuicklyLogin.html?sp=Ssysc&sp=SNM0079';
 driver.get(url).then(() => console.log('page opened'));
 const captchaElem = driver.findElement(By.id('identifyCode'));
 let size, location;
