@@ -225,6 +225,7 @@ exports.nonTextInputOptionXPathHashes = {
 
 exports.commonElementXPathHashes = {
   '车辆信息检索': '//*[@title="车辆信息检索"]',
+  'noteCloseButton': '//*[@id="img"]/span'
   // '回收证明单编号': '//*[@id="1180"]/div/p[6]',
   // '保存': '//*[@id="1337"]/div/span/span', // 保存 after submitting newEntry
   // '车辆列表（企业）': '//*[@title="车辆列表（企业）"]'

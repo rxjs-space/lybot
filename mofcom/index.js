@@ -353,6 +353,8 @@ const prepareNewEntryPromise = (vehicle, session) => {
       , 20 * 1000);
       console.log(roomId, '[prepare new entry]', 'after seeing the title:', calculateTimeElapsed());
 
+      // close the flying note
+      yield driver.findElement(By.xpath(commonElementXPathHashes['noteCloseButton'])).click();
       yield kodakPromise(driver, 'png/03-01-before-typing-in.png')
       console.log(roomId, '[prepare new entry] after taking 03-01:', calculateTimeElapsed());
 
