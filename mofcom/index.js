@@ -399,7 +399,7 @@ const prepareNewEntryPromise = (vehicle, session) => {
             }
             break;
           case 'vehicle.seats':
-            value = vehicle['vehicle']['seats'] ? vehicle['vehicle']['seats'] : 0;
+            value = vehicle['vehicle']['seats'] ? vehicle['vehicle']['seats'] : '0';
             break;
           case 'vinConfirm':
           case 'vin':
