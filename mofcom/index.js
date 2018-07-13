@@ -398,6 +398,9 @@ const prepareNewEntryPromise = (vehicle, session) => {
               value = '';
             }
             break;
+          case 'vehicle.seats':
+            value = vehicle['vehicle']['seats'] ? vehicle['vehicle']['seats'] : 0;
+            break;
           case 'vinConfirm':
           case 'vin':
             value = vehicle['vin'] + vehicle['vinSuffix'];
